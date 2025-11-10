@@ -6,6 +6,7 @@ Simulador de colonia con tintes RPG inspirado en RimWorld, Dwarf Fortress y la c
 
 | Versión | Fecha | Notas |
 | --- | --- | --- |
+| 0.0.6 | 2025-11-12 | Sistema de combate/magia (stats/talentos Ceniza/Juramento), hechizos data-driven, encuentro de 3 enemigos + mini-jefe y telemetría de daño con HUD ampliado. |
 | 0.0.5 | 2025-11-11 | Sistema de decisiones/reputación (puente/peaje), flags persistentes, guardado/carga (`F5/F9`) e inventario/estructuras serializados. |
 | 0.0.4 | 2025-11-10 | Inventario compartido + recetas data-driven (madera→tablón→cama), cola de crafting, planos colocables (cama/caja) y HUD de recursos. |
 | 0.0.3 | 2025-11-10 | Colonos migrados a ECS (Ashley), cola de trabajos de recolección con nodos compartidos, overlay de recursos y mejoras HUD/audio. |
@@ -38,10 +39,11 @@ Simulador de colonia con tintes RPG inspirado en RimWorld, Dwarf Fortress y la c
 gradlew.bat desktop:run
 ```
 
-Atajos actuales (v0.0.5):
+Atajos actuales (v0.0.6):
 
 - `WASD` mover al colono seleccionado (ECS).
 - `Shift` aplicar sprint temporal.
+- `Q`/`E` lanzar hechizos primario/secundario (Ceniza/Juramento).
 - `1`/`2` solicitar recetas (tablones/cama); `B`/`N` colocan planos si hay recursos suficientes.
 - `H` abre/cierra decisiones (elige con números), `F5` guarda, `F9` carga, `Tab` alterna colonos, `C` grilla, `F1` debug.
 - Música ambiental (`assets/audio/proto_theme.wav`) se reproduce en loop al iniciar.
@@ -67,3 +69,11 @@ muisca/
 4. Conectar audio modular (capas por bioma/evento) y telemetría de rendimiento.
 
 El roadmap completo con versiones 0.0.1–0.0.11 y las métricas asociadas viven en `docs/roadmap.md`. Revisa también `docs/backlog.md` y `docs/gdd.md` para lineamientos de diseño/optimización obligatorios.
+
+## Validaciones
+
+Pruebas unitarias actuales (cálculos de daño/resistencias):
+
+```bash
+./gradlew core:test
+```

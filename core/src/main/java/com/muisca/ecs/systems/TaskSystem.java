@@ -13,6 +13,7 @@ import com.muisca.crafting.CraftingQueue.CraftingJob;
 import com.muisca.ecs.components.ColonistComponent;
 import com.muisca.ecs.components.InputControlComponent;
 import com.muisca.ecs.components.TaskComponent;
+import com.muisca.ecs.components.StatsComponent;
 import com.muisca.jobs.JobBoard;
 
 public class TaskSystem extends EntitySystem {
@@ -21,6 +22,7 @@ public class TaskSystem extends EntitySystem {
     private final CraftingQueue craftingQueue;
     private final ComponentMapper<ColonistComponent> colonistMapper = ComponentMapper.getFor(ColonistComponent.class);
     private final ComponentMapper<InputControlComponent> inputMapper = ComponentMapper.getFor(InputControlComponent.class);
+    private final ComponentMapper<StatsComponent> statsMapper = ComponentMapper.getFor(StatsComponent.class);
     private ImmutableArray<Entity> entities;
     private final Vector2 temp = new Vector2();
 
@@ -40,6 +42,10 @@ public class TaskSystem extends EntitySystem {
             Entity entity = entities.get(i);
             InputControlComponent input = inputMapper.get(entity);
             if (input != null && input.selected) {
+                continue;
+            }
+            StatsComponent stats = statsMapper.get(entity);
+            if (stats != null && !stats.stats.isAlive()) {
                 continue;
             }
             Colonist colonist = colonistMapper.get(entity).colonist;

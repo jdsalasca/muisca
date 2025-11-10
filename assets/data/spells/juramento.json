@@ -1,0 +1,39 @@
+{
+  "school": "JURAMENTO",
+  "spells": [
+    {
+      "id": "oath_bind",
+      "name": "Oath Bind",
+      "damageType": "ARCANE",
+      "baseDamage": 18,
+      "attackScaling": 0.55,
+      "staminaCost": 8,
+      "focusCost": 8,
+      "range": 240,
+      "cooldown": 2.8,
+      "status": {
+        "type": "BOND",
+        "duration": 6,
+        "potency": 0.2,
+        "tickInterval": 2
+      }
+    },
+    {
+      "id": "warding_sigils",
+      "name": "Warding Sigils",
+      "damageType": "ARCANE",
+      "baseDamage": 14,
+      "attackScaling": 0.4,
+      "staminaCost": 6,
+      "focusCost": 10,
+      "range": 200,
+      "cooldown": 2.2,
+      "status": {
+        "type": "BOND",
+        "duration": 5,
+        "potency": 0.15,
+        "tickInterval": 1.5
+      }
+    }
+  ]
+}

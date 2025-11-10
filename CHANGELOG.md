@@ -2,9 +2,18 @@
 
 All notable changes to this project will be documented here. The format loosely follows [Keep a Changelog](https://keepachangelog.com/) while the versioning scheme will track playable milestones.
 
-# Changelog
+## [0.0.6] - 2025-11-12
 
-All notable changes to this project will be documented here. The format loosely follows [Keep a Changelog](https://keepachangelog.com/) while the versioning scheme will track playable milestones.
+### Added
+- Componentes de combate (stats, talentos, identidad, hechizos) y sistemas (`CombatResourceSystem`, `PlayerCombatSystem`, `EnemyAISystem`, `StatusSystem`).
+- Librerías de hechizos Ceniza/Juramento (`assets/data/spells/*.json`), telemetría de daño y HUD ampliado con barras de vida/recursos.
+- Encuentro prototipo con 3 arquetipos enemigos y mini-jefe, más fábricas y texturas dedicadas.
+- Pruebas `DamageCalculatorTest` para validar mitigación/resistencias sobre estados Bond/Burn.
+
+### Changed
+- `SettlementScreen` ahora carga libro de hechizos, asigna talentos a colonos, habilita lanzamientos con `Q/E` y muestra overlay con DPS.
+- README/roadmap/backlog/AGENTS reflejan sprint 0.0.6 y se documentan nuevos atajos/validaciones.
+- Gradle core integra JUnit 5 para las nuevas pruebas automatizadas.
 
 ## [0.0.5] - 2025-11-11
 

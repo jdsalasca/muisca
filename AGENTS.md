@@ -10,7 +10,7 @@
 | 0.0.3 | ECS + harvesting | ✅ |
 | 0.0.4 | Inventario, recetas, estructuras | ✅ |
 | 0.0.5 | Decisiones, reputación, guardado | ✅ |
-| 0.0.6 | **Combate + magia (EN CURSO)** | 🔜 |
+| 0.0.6 | **Combate + magia** | ✅ |
 | 0.0.7 | Economía/cultivos + bioma 2 | 🔜 |
 | 0.0.8 | Eventos + audio reactivo | 🔜 |
 | 0.0.9 | Facciones/guerras | 🔜 |
@@ -19,11 +19,11 @@
 
 ## 2. Sprint activo – v0.0.6 Combate & Magia
 Marca cada casilla cuando finalices la tarea (no antes) y enlaza el commit.
-- [ ] Componentes de stats/talentos (VIT/STM/ATK/DEF/RES) y HUD asociado.
-- [ ] IA de tres enemigos + mini-jefe (gestiona stamina/magia del jugador).
-- [ ] Escuelas Ceniza/Juramento: hechizos, estados (quemado/vínculo) y costos.
-- [ ] Telemetría de daño (overlay + logging) para balance.
-- [ ] Pruebas o validadores para cálculos de daño/resistencias.
+- [x] Componentes de stats/talentos (VIT/STM/ATK/DEF/RES) y HUD asociado. *(Codex 2025-11-12 – cambios en HEAD, commit pendiente)* 
+- [x] IA de tres enemigos + mini-jefe (gestiona stamina/magia del jugador). *(Codex 2025-11-12)* 
+- [x] Escuelas Ceniza/Juramento: hechizos, estados (quemado/vínculo) y costos. *(Codex 2025-11-12)* 
+- [x] Telemetría de daño (overlay + logging) para balance. *(Codex 2025-11-12)* 
+- [x] Pruebas o validadores para cálculos de daño/resistencias. *(Codex 2025-11-12)* 
 
 ## 3. Flujo de trabajo para agentes
 1. **Anuncia tu trabajo**: al empezar, añade tu nombre en esta sección describiendo qué casillas del sprint abordarás.
@@ -31,6 +31,14 @@ Marca cada casilla cuando finalices la tarea (no antes) y enlaza el commit.
 3. **Actualiza documentación**: cualquier feature debe reflejarse en `README.md`, `CHANGELOG.md`, `docs/roadmap.md`, `docs/backlog.md` y, si aplica, `AGENTS.md`.
 4. **Registra validaciones**: indica en el commit/PR qué comandos se corrieron (`desktop:classes`, `desktop:run`, tests) o por qué no se pudieron ejecutar.
 5. **Hand-off**: antes de salir, marca las casillas que completaste, anota pendientes y deja instrucciones claras aquí.
+
+**Sesión 2025-11-11 – Codex (GPT-5)**  
+- Foco: stats/talentos + HUD, IA enemigos, escuelas Ceniza/Juramento, telemetría de daño y pruebas de daño.
+
+**Hand-off Codex – 2025-11-12**
+- Combate prototype integrado; quedan pendientes persistir stats/hechizos en `SaveManager` y balancear números (ver `SettlementScreen` constantes).
+- Ajustar economía de stamina/focus tras playtest prolongado (actualmente altos para garantizar demo).
+- Telemetría sólo imprime a log; evaluar volcado a archivo CSV en herramientas futuras.
 
 ## 4. Estructura del proyecto
 - `core/`: gameplay (ECS, mundo, colonos, crafting, decisiones, guardado).

@@ -6,4 +6,9 @@ dependencies {
     api("com.badlogicgames.gdx:gdx:${rootProject.ext.gdxVersion}")
     api("com.badlogicgames.ashley:ashley:${rootProject.ext.ashleyVersion}")
     implementation("com.badlogicgames.gdx:gdx-ai:${rootProject.ext.aiVersion}")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.11.0")
+}
+
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
 }

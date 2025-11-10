@@ -31,12 +31,28 @@ import com.muisca.decisions.DecisionEngine;
 import com.muisca.decisions.DecisionGraph;
 import com.muisca.decisions.DecisionNode;
 import com.muisca.decisions.DecisionState;
+import com.muisca.combat.CombatStats;
+import com.muisca.combat.DamageTelemetry;
+import com.muisca.combat.SpellDefinition;
+import com.muisca.combat.SpellLibrary;
+import com.muisca.combat.TalentId;
 import com.muisca.ecs.components.AutonomyComponent;
+import com.muisca.ecs.components.CombatIdentityComponent;
 import com.muisca.ecs.components.ColonistComponent;
+import com.muisca.ecs.components.EnemyComponent;
 import com.muisca.ecs.components.InputControlComponent;
+import com.muisca.ecs.components.PlayerCombatComponent;
+import com.muisca.ecs.components.SpellbookComponent;
+import com.muisca.ecs.components.StatsComponent;
+import com.muisca.ecs.components.StatusComponent;
 import com.muisca.ecs.components.TaskComponent;
+import com.muisca.ecs.components.TalentComponent;
 import com.muisca.ecs.systems.AutonomySystem;
+import com.muisca.ecs.systems.CombatResourceSystem;
+import com.muisca.ecs.systems.EnemyAISystem;
 import com.muisca.ecs.systems.InputMovementSystem;
+import com.muisca.ecs.systems.PlayerCombatSystem;
+import com.muisca.ecs.systems.StatusSystem;
 import com.muisca.ecs.systems.TaskSystem;
 import com.muisca.inventory.Inventory;
 import com.muisca.jobs.JobBoard;
@@ -50,9 +66,11 @@ import com.muisca.structures.StructureManager;
 import com.muisca.world.TileType;
 import com.muisca.world.WorldGenerator;
 import com.muisca.world.WorldMap;
+import com.muisca.enemies.EnemyArchetype;
+import com.muisca.enemies.EnemyFactory;
 
 /**
- * v0.0.4 slice – ECS colonists, shared inventory, crafting loop, and blueprint placement.
+ * v0.0.6 slice – colonos ECS + combate/magia y encuentro prototipo.
  */
 public class SettlementScreen extends ScreenAdapter implements Disposable {
 
@@ -60,6 +78,12 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
     private static final int WORLD_WIDTH_TILES = 96;
     private static final int WORLD_HEIGHT_TILES = 96;
     private static final int CHUNK_SIZE = 16;
+    private static final Color ENEMY_COLOR = new Color(0.9f, 0.35f, 0.35f, 0.95f);
+    private static final Color ENEMY_DEFEATED_COLOR = new Color(0.35f, 0.35f, 0.35f, 0.7f);
+    private static final Color HP_BAR_BG = new Color(0f, 0f, 0f, 0.65f);
+    private static final Color HP_BAR_PLAYER = new Color(0.25f, 0.85f, 0.35f, 0.9f);
+    private static final Color HP_BAR_ENEMY = new Color(0.9f, 0.4f, 0.2f, 0.9f);
+    private static final Color STAMINA_BAR_COLOR = new Color(0.2f, 0.6f, 0.95f, 0.85f);
 
     private final MuiscaGame game;
     private final SpriteBatch batch;
@@ -70,11 +94,18 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
     private final WorldMap worldMap;
     private final Texture[] tileTextures;
     private final Texture colonistTexture;
+    private final float worldCenterX;
+    private final float worldCenterY;
 
     private final Engine engine;
     private final Array<Entity> colonistEntities = new Array<>();
     private final ComponentMapper<ColonistComponent> colonistMapper = ComponentMapper.getFor(ColonistComponent.class);
     private final ComponentMapper<InputControlComponent> inputMapper = ComponentMapper.getFor(InputControlComponent.class);
+    private final ComponentMapper<StatsComponent> statsMapper = ComponentMapper.getFor(StatsComponent.class);
+    private final ComponentMapper<StatusComponent> statusMapper = ComponentMapper.getFor(StatusComponent.class);
+    private final ComponentMapper<PlayerCombatComponent> playerCombatMapper = ComponentMapper.getFor(PlayerCombatComponent.class);
+    private final ComponentMapper<CombatIdentityComponent> identityMapper = ComponentMapper.getFor(CombatIdentityComponent.class);
+    private final ComponentMapper<EnemyComponent> enemyMapper = ComponentMapper.getFor(EnemyComponent.class);
 
     private final JobBoard jobBoard;
     private final Inventory inventory = new Inventory();
@@ -83,10 +114,13 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
     private final StructureLibrary structureLibrary;
     private final StructureManager structureManager;
     private final Vector2 craftStation;
+    private final SpellLibrary spellLibrary;
+    private final EnemyFactory enemyFactory;
     private final ReputationTracker reputationTracker = new ReputationTracker();
     private final DecisionState decisionState = new DecisionState();
     private final DecisionEngine decisionEngine;
     private final SaveManager saveManager = new SaveManager("slot1");
+    private final DamageTelemetry damageTelemetry = new DamageTelemetry();
 
     private Music ambientTrack;
     private final Vector2 inputDirection = new Vector2();
@@ -97,6 +131,8 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
     private String statusMessage = "";
     private float statusTimer = 0f;
     private boolean decisionVisible = false;
+    private final Array<Entity> enemyEntities = new Array<>();
+    private final Texture enemyTexture;
 
     public SettlementScreen(MuiscaGame game) {
         this.game = game;
@@ -108,10 +144,15 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         this.worldMap = new WorldGenerator(WORLD_WIDTH_TILES, WORLD_HEIGHT_TILES, CHUNK_SIZE, 140_921L).generate();
         this.tileTextures = createTileTextures();
         this.colonistTexture = createColonistTexture();
+        this.enemyTexture = createEnemyTexture();
         float centerX = WORLD_WIDTH_TILES * TILE_SIZE / 2f;
         float centerY = WORLD_HEIGHT_TILES * TILE_SIZE / 2f;
+        this.worldCenterX = centerX;
+        this.worldCenterY = centerY;
         this.craftStation = new Vector2(centerX + 72f, centerY);
 
+        this.spellLibrary = SpellLibrary.load(Gdx.files.internal("data/spells"));
+        this.enemyFactory = new EnemyFactory(spellLibrary);
         this.jobBoard = new JobBoard(worldMap, TILE_SIZE, 18);
         this.recipeBook = RecipeBook.load(Gdx.files.internal("data/recipes/woodworking.json"));
         this.craftingQueue = new CraftingQueue(recipeBook, inventory, craftStation);
@@ -124,11 +165,17 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         engine.addSystem(new InputMovementSystem(worldMap, TILE_SIZE));
         engine.addSystem(new AutonomySystem(worldMap, TILE_SIZE, jobBoard, craftingQueue, inventory));
         engine.addSystem(new TaskSystem(jobBoard, craftingQueue));
+        engine.addSystem(new CombatResourceSystem());
+        engine.addSystem(new PlayerCombatSystem(damageTelemetry));
+        engine.addSystem(new EnemyAISystem(damageTelemetry));
+        engine.addSystem(new StatusSystem(damageTelemetry));
 
-        createColonist("Ama", centerX, centerY);
-        createColonist("Quyca", centerX + 96, centerY + 32);
-        createColonist("Suaga", centerX - 80, centerY - 64);
+        createColonist("Ama", centerX, centerY, TalentId.CENIZA_DISCIPLINE, TalentId.JURAMENTO_WARD);
+        createColonist("Quyca", centerX + 96, centerY + 32, TalentId.CENIZA_PYRE);
+        createColonist("Suaga", centerX - 80, centerY - 64, TalentId.VANGUARD_TRAINING);
         selectColonist(0);
+
+        resetEncounter();
 
         saveManager.read(inventory, structureManager, jobBoard, reputationTracker, decisionState);
         craftingQueue.clearJobs();
@@ -139,14 +186,69 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         ambientTrack.play();
     }
 
-    private void createColonist(String name, float x, float y) {
+    private void createColonist(String name, float x, float y, TalentId... talents) {
         Entity entity = new Entity();
-        entity.add(new ColonistComponent(new Colonist(name, x, y)));
+        Colonist colonist = new Colonist(name, x, y);
+        entity.add(new ColonistComponent(colonist));
         entity.add(new InputControlComponent());
         entity.add(new AutonomyComponent());
         entity.add(new TaskComponent());
+        entity.add(new CombatIdentityComponent(name, CombatIdentityComponent.Faction.PLAYER));
+        StatsComponent stats = new StatsComponent(CombatStats.colonistBaseline());
+        TalentComponent talentComponent = new TalentComponent();
+        if (talents != null) {
+            for (TalentId talent : talents) {
+                if (talent != null) {
+                    talentComponent.addTalent(talent);
+                    talent.apply(stats.stats);
+                }
+            }
+        }
+        entity.add(talentComponent);
+        entity.add(stats);
+        SpellbookComponent spellbook = new SpellbookComponent();
+        assignDefaultSpells(spellbook);
+        entity.add(spellbook);
+        entity.add(new PlayerCombatComponent());
+        entity.add(new StatusComponent());
         engine.addEntity(entity);
         colonistEntities.add(entity);
+    }
+
+    private void assignDefaultSpells(SpellbookComponent spellbook) {
+        addSpellToBook(spellbook, "ember_burst");
+        addSpellToBook(spellbook, "oath_bind");
+    }
+
+    private void addSpellToBook(SpellbookComponent spellbook, String id) {
+        if (spellLibrary == null) {
+            return;
+        }
+        SpellDefinition definition = spellLibrary.get(id);
+        if (definition != null) {
+            spellbook.addSpell(definition);
+        }
+    }
+
+    private void resetEncounter() {
+        for (Entity enemy : enemyEntities) {
+            engine.removeEntity(enemy);
+        }
+        enemyEntities.clear();
+        spawnEncounter();
+    }
+
+    private void spawnEncounter() {
+        spawnEnemy(EnemyArchetype.CENIZA_ACOLYTE, worldCenterX + 320f, worldCenterY + 120f);
+        spawnEnemy(EnemyArchetype.JURAMENTO_SENTINEL, worldCenterX + 280f, worldCenterY - 80f);
+        spawnEnemy(EnemyArchetype.CENIZA_REVENANT, worldCenterX - 260f, worldCenterY + 150f);
+        spawnEnemy(EnemyArchetype.WARDEN_OF_UNITY, worldCenterX + 30f, worldCenterY + 260f);
+    }
+
+    private void spawnEnemy(EnemyArchetype archetype, float x, float y) {
+        Entity entity = enemyFactory.createEnemy(archetype, x, y);
+        engine.addEntity(entity);
+        enemyEntities.add(entity);
     }
 
     @Override
@@ -160,6 +262,7 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         batch.begin();
         drawWorld();
         drawStructures();
+        drawEnemies();
         drawColonists();
         drawHud(delta);
         batch.end();
@@ -173,6 +276,7 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         handleActions();
         applyInput(delta);
         engine.update(delta);
+        damageTelemetry.update(delta);
         updateCamera();
         dayTimer = (dayTimer + delta * 0.04f) % 1f;
         statusTimer = Math.max(0f, statusTimer - delta);
@@ -252,6 +356,7 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
             }
             decisionVisible = false;
             selectColonist(controlledColonistIndex);
+            resetEncounter();
             showStatus("Partida cargada.");
         }
     }
@@ -271,6 +376,18 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
             } else {
                 input.direction.setZero();
                 input.intendedSpeed = 0f;
+            }
+            PlayerCombatComponent combat = playerCombatMapper.get(colonistEntities.get(i));
+            StatsComponent stats = statsMapper.get(colonistEntities.get(i));
+            if (combat != null) {
+                if (decisionVisible || (stats != null && !stats.stats.isAlive())) {
+                    combat.resetRequests();
+                } else if (i == controlledColonistIndex) {
+                    combat.requestPrimary = Gdx.input.isKeyJustPressed(Input.Keys.Q);
+                    combat.requestSecondary = Gdx.input.isKeyJustPressed(Input.Keys.E);
+                } else {
+                    combat.resetRequests();
+                }
             }
         }
     }
@@ -326,6 +443,17 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         batch.setColor(Color.WHITE);
     }
 
+    private void drawEnemies() {
+        for (Entity entity : enemyEntities) {
+            EnemyComponent enemy = enemyMapper.get(entity);
+            if (enemy == null) continue;
+            StatsComponent stats = statsMapper.get(entity);
+            batch.setColor((stats != null && stats.stats.isAlive()) ? ENEMY_COLOR : ENEMY_DEFEATED_COLOR);
+            batch.draw(enemyTexture, enemy.position.x - 16, enemy.position.y - 16);
+        }
+        batch.setColor(Color.WHITE);
+    }
+
     private void drawColonists() {
         for (int i = 0; i < colonistEntities.size; i++) {
             Colonist colonist = colonistMapper.get(colonistEntities.get(i)).colonist;
@@ -338,7 +466,7 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
 
     private void drawHud(float delta) {
         StringBuilder builder = new StringBuilder();
-        builder.append("Muisca v0.0.4 | Tab colonos | WASD mover | Shift correr | 1=Tablones | 2=Cama | B/N planos | C grilla | F1 debug\n");
+        builder.append("Muisca v0.0.6 | Tab colonos | WASD mover | Shift correr | Q/E hechizos | 1=Tablones | 2=Cama | B/N planos | C grilla | F1 debug\n");
         builder.append("Inventario: ").append(inventory.summarize()).append('\n');
         builder.append("Pedidos carpintería: ");
         boolean first = true;
@@ -367,19 +495,39 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
 
         builder.setLength(0);
         for (int i = 0; i < colonistEntities.size; i++) {
-            Colonist colonist = colonistMapper.get(colonistEntities.get(i)).colonist;
+            Entity colonistEntity = colonistEntities.get(i);
+            Colonist colonist = colonistMapper.get(colonistEntity).colonist;
+            StatsComponent stats = statsMapper.get(colonistEntity);
             builder.append(i == controlledColonistIndex ? "> " : "  ");
             builder.append(colonist.getName())
                     .append(" | Hambre ").append(MathUtils.round(colonist.getHunger() * 100)).append("%")
                     .append(" | Espíritu ").append(MathUtils.round(colonist.getSpirit() * 100)).append("%")
-                    .append(" | Fatiga ").append(MathUtils.round(colonist.getFatigue() * 100)).append("%")
-                    .append(" | Tarea ").append(colonist.getCurrentTask()).append('\n');
+                    .append(" | Fatiga ").append(MathUtils.round(colonist.getFatigue() * 100)).append("%");
+            if (stats != null) {
+                builder.append(" | HP ").append(MathUtils.round(stats.stats.getHealth())).append('/')
+                        .append(MathUtils.round(stats.stats.getMaxHealth()))
+                        .append(" | STM ").append(MathUtils.round(stats.stats.getStaminaPool())).append('/')
+                        .append(MathUtils.round(stats.stats.getMaxStamina()))
+                        .append(" | FOC ").append(MathUtils.round(stats.stats.getFocusPool())).append('/')
+                        .append(MathUtils.round(stats.stats.getMaxFocus()))
+                        .append(" | ATK ").append(MathUtils.round(stats.stats.getAttack()))
+                        .append(" | DEF ").append(MathUtils.round(stats.stats.getDefense()))
+                        .append(" | RES ").append(MathUtils.round(stats.stats.getResistance()));
+                if (!stats.stats.isAlive()) {
+                    builder.append(" | ⚠ Derribado");
+                }
+            }
+            builder.append(" | Tarea ").append(colonist.getCurrentTask()).append('\n');
         }
         font.draw(batch, builder, camera.position.x - 620, camera.position.y + 260);
 
         if (decisionVisible) {
             drawDecisionOverlay();
         }
+
+        builder.setLength(0);
+        builder.append(damageTelemetry.buildOverlayText());
+        font.draw(batch, builder, camera.position.x - 620, camera.position.y + 210);
 
         if (showDebug) {
             font.draw(batch,
@@ -424,7 +572,30 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
             }
             shapeRenderer.circle(site.position.x, site.position.y, 6f, 12);
         }
+        for (int i = 0; i < colonistEntities.size; i++) {
+            Entity colonistEntity = colonistEntities.get(i);
+            StatsComponent stats = statsMapper.get(colonistEntity);
+            if (stats == null) continue;
+            Vector2 pos = colonistMapper.get(colonistEntity).colonist.getPosition();
+            drawBar(pos.x - 18f, pos.y + 22f, 36f, 3f, stats.stats.getHealthRatio(), HP_BAR_PLAYER);
+            drawBar(pos.x - 18f, pos.y + 17f, 36f, 2f, stats.stats.getStaminaRatio(), STAMINA_BAR_COLOR);
+        }
+        for (Entity enemy : enemyEntities) {
+            EnemyComponent enemyComponent = enemyMapper.get(enemy);
+            StatsComponent stats = statsMapper.get(enemy);
+            if (enemyComponent == null || stats == null) continue;
+            drawBar(enemyComponent.position.x - 18f, enemyComponent.position.y + 20f, 36f, 3f,
+                    stats.stats.getHealthRatio(), stats.stats.isAlive() ? HP_BAR_ENEMY : ENEMY_DEFEATED_COLOR);
+        }
         shapeRenderer.end();
+    }
+
+    private void drawBar(float x, float y, float width, float height, float ratio, Color fillColor) {
+        float clamped = MathUtils.clamp(ratio, 0f, 1f);
+        shapeRenderer.setColor(HP_BAR_BG);
+        shapeRenderer.rect(x, y, width, height);
+        shapeRenderer.setColor(fillColor);
+        shapeRenderer.rect(x, y, width * clamped, height);
     }
 
     private void drawDecisionOverlay() {
@@ -504,6 +675,17 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         return texture;
     }
 
+    private Texture createEnemyTexture() {
+        Pixmap pixmap = new Pixmap(32, 32, Pixmap.Format.RGBA8888);
+        pixmap.setColor(new Color(0.8f, 0.22f, 0.18f, 1f));
+        pixmap.fillCircle(16, 16, 12);
+        pixmap.setColor(new Color(0.2f, 0.02f, 0.02f, 1f));
+        pixmap.drawCircle(16, 16, 12);
+        Texture texture = new Texture(pixmap);
+        pixmap.dispose();
+        return texture;
+    }
+
     private Color getSkyColor() {
         float intensity = MathUtils.sin(dayTimer * MathUtils.PI2) * 0.5f + 0.5f;
         return new Color(0.07f + intensity * 0.25f, 0.09f + intensity * 0.25f, 0.12f + intensity * 0.35f, 1f);
@@ -520,6 +702,7 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
             texture.dispose();
         }
         colonistTexture.dispose();
+        enemyTexture.dispose();
         font.dispose();
         shapeRenderer.dispose();
         if (ambientTrack != null) {

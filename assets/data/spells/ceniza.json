@@ -1,0 +1,56 @@
+{
+  "school": "CENIZA",
+  "spells": [
+    {
+      "id": "ember_burst",
+      "name": "Ember Burst",
+      "damageType": "FIRE",
+      "baseDamage": 22,
+      "attackScaling": 0.65,
+      "staminaCost": 10,
+      "focusCost": 6,
+      "range": 260,
+      "cooldown": 2.4,
+      "status": {
+        "type": "BURN",
+        "duration": 4,
+        "potency": 4,
+        "tickInterval": 1
+      }
+    },
+    {
+      "id": "cinder_chain",
+      "name": "Cinder Chain",
+      "damageType": "FIRE",
+      "baseDamage": 28,
+      "attackScaling": 0.8,
+      "staminaCost": 14,
+      "focusCost": 10,
+      "range": 230,
+      "cooldown": 3.2,
+      "status": {
+        "type": "BURN",
+        "duration": 5,
+        "potency": 5,
+        "tickInterval": 0.8
+      }
+    },
+    {
+      "id": "ashen_nova",
+      "name": "Ashen Nova",
+      "damageType": "FIRE",
+      "baseDamage": 35,
+      "attackScaling": 1.0,
+      "staminaCost": 20,
+      "focusCost": 16,
+      "range": 210,
+      "cooldown": 4.5,
+      "status": {
+        "type": "BURN",
+        "duration": 6,
+        "potency": 6,
+        "tickInterval": 0.7
+      }
+    }
+  ]
+}
