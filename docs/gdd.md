@@ -72,3 +72,11 @@ WASD o click-to-move, barra rápida, rueda de inventario, pausa táctica. Overla
 - **Rendimiento**: throttle IA/path, regiones sucias, pooling.
 - **Arte**: tilesets modulares, atlas compartidos.
 - **Narrativa**: pipelines data-driven + validadores automáticos.
+
+## 13. Principios de ingeniería y optimización
+- **Toolchains fijas**: Java 25 para runtime/JIT y Java 21 para Gradle. No mezclar versiones sin actualizar `tools/fetch-openjdk*.sh`.
+- **ECS obligatorio** (v0.0.3+): Ashley/Artemis-ODB para entidades; cada sistema debe declarar orden y budget (ms) en comentarios.
+- **Data-config primero**: recursos en JSON/YAML validados por scripts (`tools/validate-data.sh`, pendiente). Nada de “magic numbers” en el código salvo valores de fallback.
+- **Audio escalable**: Música en capas (stems) gestionadas por un `AudioDirector`. 0.0.2 usa un tema generado proceduralmente; 0.0.8 introduce bancos por bioma/evento.
+- **Optimización incremental**: Perf budget 16 ms/frame. Usar chunk streaming, regiones sucias y pooling desde el día 1; perf regressions sin métrica documentada no se aceptan.
+- **Automatización**: cada feature agrega scripts para reproducir assets/datos (ej. generadores de audio, empaquetadores de atlas) dentro de `tools/`.

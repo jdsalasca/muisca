@@ -12,7 +12,7 @@ public final class DesktopLauncher {
 
     public static void main(String[] args) {
         Lwjgl3ApplicationConfiguration config = new Lwjgl3ApplicationConfiguration();
-        config.setTitle("Muisca v0.0.1");
+        config.setTitle("Muisca v0.0.2");
         config.useVsync(true);
         config.setWindowedMode(1280, 720);
         config.setForegroundFPS(60);

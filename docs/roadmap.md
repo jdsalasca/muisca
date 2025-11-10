@@ -1,47 +1,37 @@
-# Roadmap Operativo (Resumen)
+# Roadmap Operativo (v0.0.1 – v0.0.11)
 
-## Hito actual: v0.0.1
-- ✅ Estructura Gradle/libGDX, launcher desktop y slice visual básico con movimiento.
-- 🚧 Migrar placeholder tiles → assets reales y comenzar ECS (Ashley).
+El objetivo es entregar builds cortas y tocables cada iteración, siempre con foco en escalabilidad (ECS + data-driven), rendimiento (chunk streaming, pooling) y narrativa persistente. Cada release incluye KPI básicos: 60 FPS en 1080p, menos de 2 GB de RAM, escena cargable en ≤6 s.
 
-## Próximos hitos
+## Línea de entregas
 
-### v0.1 — Vertical Slice Base (2–3 semanas)
-- Chunk streaming mínimo (un bioma), ciclo día/noche y recolección básica.
-- 1–2 colonos con prioridades simples (moverse, comer, dormir).
-- Construcción de muro/taller/cama + 3 recetas (tablón, cama, antorcha).
-- Guardado/carga simple (snapshot de estado del chunk) + overlay de áreas de trabajo.
+| Versión | Pilares | Entregable clave | Métricas |
+| --- | --- | --- | --- |
+| **0.0.1** | Motor | Proyecto Gradle/libGDX, render básico, HUD placeholder. | Build desktop corre en Java 25. |
+| **0.0.2** | Mundo + audio | Generador 96×96 tiles con 6 biomas, colonos múltiples (estados), música ambiental prototipo. | ≥3 colonos activos, chunk overlay sin caídas. |
+| **0.0.3** | ECS y recursos | Integrar Ashley/Artemis, sistema de colonos como entidades, harvesting básico (árboles ficticios) y job queue mínima. | Tick fijo 30 hz, cola de trabajos sin frame drops. |
+| **0.0.4** | Construcción/crafting | Blueprint de estructuras livianas, recetas JSON (madera→tablón→cama), inventario compartido, UI de crafting. | Guardado/carga de un chunk con menos de 200 KB. |
+| **0.0.5** | Decisiones/reputación | Flags persistentes, cadena “puente o peaje”, facción local que modifica comercio; validador de nodos JSON. | Reputación se conserva tras guardar/cargar; prueba automatizada de flags. |
+| **0.0.6** | Combate/magia | Stats, talentos iniciales, 2 escuelas (Ceniza/Juramento), 3 enemigos IA y mini-jefe. | Encuentro jefe ≤3 min, telemetría de daño. |
+| **0.0.7** | Economía/agricultura | Cultivos (3 plantas), estaciones ligeras, comercio con reputación + escasez, segundo bioma jugable. | Colonia se sostiene 10 min solo con cultivos. |
+| **0.0.8** | Eventos + audio reactivo | Eventos (migrante, ataque menor, tormenta), capas de música/SFX por bioma/clima, progreso de rasgos. | Eventos se disparan cada 6–10 min, sistema de música sin cortes audibles. |
+| **0.0.9** | Facciones/guerras | 3 facciones con tensiones, mapa estratégico, asaltos/tributos/treguas, diplomacia UI. | Simulación mínima 20 min sin GC spikes >10 ms. |
+| **0.0.10** | UX/accesibilidad | Overlays avanzados (pathing, calor de peligro), remapeo completo, soporte daltonismo, perfiles de entrada. | Encuesta tutorial ≥85 % comprensión, QA accesibilidad checklist verde. |
+| **0.0.11** | Optimización + contenidos | Chunk streaming multi-bioma, pooling IA, profiler scripts, paquetes de assets finales (música, FX, sprites), soporte modding data-driven inicial. | Build Analyzer muestra CPU <10 ms en hardware target, pipeline de datos validado en CI. |
 
-### v0.2 — Decisiones y Comercio
-- Sistema de flags/reputación persistentes.
-- Cadena de decisión (reparar puente vs peaje) que altera rutas, precios y acceso.
-- Una facción visible reaccionando al jugador; precios dinámicos.
+> Después de 0.0.11 se consolida **Alpha 0.1** (4 biomas, 30+ recetas, 10 cadenas narrativas) y se abre Beta 0.2 con focus QA/balance.
 
-### v0.3 — RPG y Combate
-- Stats básicos, árbol de talentos inicial (6 nodos) y arma cuerpo a cuerpo.
-- 2 escuelas de magia (Ceniza + Juramento) con estados ardor/vínculo.
-- 3 enemigos con IA gdx-ai y mini-jefe que exige gestión de stamina/hechizos.
+## Principios obligatorios (respetar en cada sprint)
 
-### v0.4 — Economía y Agricultura
-- Cultivos (3 plantas), estaciones ligeras, recetas nuevas (pociones/comida).
-- Segundo bioma jugable (paramo solar) con tileset y bestiario propios.
-- Comercio con escasez/reputación afectando precios.
+- **ECS primero**: no hay lógica de gameplay en render. Componentes y sistemas deben residir en `core/src/main/java/com/muisca/ecs/**` (a crear en 0.0.3) y solo comunicarse mediante eventos/data.
+- **Data-driven**: Biomas, recetas, hechizos, decisiones y facciones viven en `assets/data/*.json|yaml`. Ningún valor mágico en código salvo fallback.
+- **Optimización continua**: cada feature incluye medición (miniprofiler, logs). Prohibido introducir allocaciones por frame en loops críticos; preferir pooling/libGDX `Array`.
+- **Audio escalable**: usar `Music` + `Sound` en capas. Cada bioma tendrá stems propios (planeado para 0.0.8), así que mantener rutas y mixers en `assets/audio/banks.json` (pendiente).
+- **Testing/validadores**: a partir de 0.0.5 existen pruebas JUnit para flags/crafting/economía y scripts en `tools/` para validar JSON y empaquetar atlas.
 
-### v0.5 — Eventos, Colonos y Monturas (Lite)
-- Eventos: migrante, ataque menor, tormenta azufrada.
-- Rasgos adicionales y prioridades extendidas; caballo como montura básica.
-- Viajes más rápidos con monturas (≥30% mejora).
+## Cadencia y responsabilidades
 
-### v0.6 — Facciones y Guerras (Proto)
-- 2–3 facciones con tensiones y territorios; mapa estratégico.
-- Asaltos, tributos y treguas dinamizados por reputación y pagos.
+- **Sprints de 2 semanas** con entregables ejecutables. Cada sprint actualiza `docs/roadmap.md`, `docs/backlog.md`, `CHANGELOG.md`, y `README.md`.
+- **Playtests internos**: 0.0.5, 0.0.7 y 0.0.9 deben generar encuestas y telemetría (ver `docs/metrics.md` futuro).
+- **Herramientas**: mantener `tools/` con scripts reproducibles (fetch JDK, validadores, generadores de audio) y documentar parámetros.
 
-### Alpha 0.8 / Beta 0.9 / 1.0
-- Alpha: 4 biomas, 30+ recetas, 10 cadenas narrativas, UI pulida.
-- Beta: contenido completo, audio final, telemetría ligera, feature freeze.
-- 1.0: campaña sandbox estable, logros básicos, localización EN/ES.
-
-## Entregables transversales
-- **Docs**: actualizar GDD/roadmap/backlog tras cada sprint.
-- **Testing**: empezar suite de reglas (crafting, decisiones) en v0.2+.
-- **Tooling**: scripts para validar JSON, exportar Tiled y empacar atlas.
+Este roadmap es la fuente de verdad para los agentes. Si se requiere ajuste mayor, actualizar también el GDD y comunicar en el `CHANGELOG`.

@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented here. The format loosely follows [Keep a Changelog](https://keepachangelog.com/) while the versioning scheme will track playable milestones.
 
+## [0.0.2] - 2025-11-09
+
+### Added
+- Generador procedural (96×96 tiles) con 6 biomas inspirados en el universo muisca y grilla de chunks conmutables.
+- Tres colonos con estados básicos (hambre, espíritu, fatiga), control manual con WASD + sprint y cambio de colono con Tab.
+- Simulación de colonos autónomos, HUD expandido y modo debug (F1) para lectura rápida del mundo.
+- Música ambiental (`assets/audio/proto_theme.wav`) y documentación extendida (roadmap 0.0.1–0.0.11, principios de optimización).
+
+### Changed
+- Título de la build desktop para reflejar v0.0.2.
+- Versionado Gradle del proyecto principal.
+
 ## [0.0.1] - 2025-11-09
 
 ### Added

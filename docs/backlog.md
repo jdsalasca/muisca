@@ -1,21 +1,21 @@
-# Backlog Inicial (Épicas y primeras historias)
+# Backlog Prioritario
 
-| ID | Épica | Objetivo | Dependencias | Estado |
+| ID | Release | Épica | Objetivo | Estado |
 | --- | --- | --- | --- | --- |
-| E-001 | Mundo procedural | Generar chunks, biomas y recursos básicos. | Motor base | 🔜 |
-| E-002 | Colonos & scheduler | Necesidades (hambre/sueño/ánimo), prioridades y cola global. | E-001 | 🔜 |
-| E-003 | Construcción & crafting | Estaciones, recetas data-driven, inventario compartido. | E-002 | 🔜 |
-| E-004 | Decisiones & reputación | Flags persistentes, nodos JSON/YAML, consecuencias en comercio/acceso. | E-003 | 🔜 |
-| E-005 | Combate & magia | Stats, talentos, 2 escuelas (Ceniza/Juramento), enemigos IA. | E-002 | 🔜 |
-| E-006 | Economía & granja | Cultivos, estaciones, comercio dinámico. | E-003 | 🔜 |
-| E-007 | Eventos & monturas | Migrantes, clima hostil, caballo/lobo para viaje y carga. | E-002 | 🔜 |
-| E-008 | Facciones & guerras | Tensiones territoriales, asaltos, tributos. | E-004 | 🔜 |
-| E-009 | UX & accesibilidad | Overlays, escalado, remapeo, reportes de reputación. | Todos | 🔜 |
-| E-010 | Guardado & optimización | Snapshots ECS, chunk streaming, pooling. | E-001 | 🔜 |
+| E-001 | 0.0.2 | Mundo procedural + audio | Generar chunks 96×96, biomas y música base. | ✅ |
+| E-002 | 0.0.3 | Colonos & scheduler | Colonos como entidades ECS, necesidades y cola global de trabajos. | 🔜 |
+| E-003 | 0.0.4 | Construcción & crafting | Estaciones, recetas JSON, inventario compartido y UI. | 🔜 |
+| E-004 | 0.0.5 | Decisiones & reputación | Flags persistentes, nodos YAML/JSON con condiciones y efectos. | 🔜 |
+| E-005 | 0.0.6 | Combate & magia | Stats, talentos, escuelas Ceniza/Juramento, enemigos IA. | 🔜 |
+| E-006 | 0.0.7 | Economía & granja | Cultivos, estaciones, comercio dinámico y bioma adicional. | 🔜 |
+| E-007 | 0.0.8 | Eventos & audio reactivo | Eventos sistémicos, clima y capas musicales/SFX por bioma. | 🔜 |
+| E-008 | 0.0.9 | Facciones & guerras | Tensiones, mapa estratégico, asaltos/tributos/treguas. | 🔜 |
+| E-009 | 0.0.10 | UX & accesibilidad | Overlays, remapeo completo, perfiles de entrada, daltonismo. | 🔜 |
+| E-010 | 0.0.11 | Guardado & optimización | Chunk streaming, pooling IA, validadores en CI y soporte modding data. | 🔜 |
 
-## Historias sugeridas (próximo sprint)
-1. **Chunk renderer**: cargar malla 64×64 y permitir scroll con cámara.
-2. **Scheduler mínimo**: cola de trabajos (comer/dormir) con prioridades configurables por colono.
-3. **Recetas JSON**: parsear 3 recetas (madera→tablón→cama) y mostrarlas en UI básica.
-4. **Flag bridge_decision**: decisión binaria que cambia precios de comerciante itinerante tras guardar/cargar.
-5. **Prueba unitaria**: validar que el costo de recetas escala con la rareza (placeholder).
+## Historias en foco (para 0.0.3)
+1. **Integrar Ashley/Artemis** en `core/ecs` con sistema de movimiento + necesidades (tick fijo).
+2. **Cola de trabajos**: definir prioridades (recolectar, descansar, socializar) y prototipo de scheduler determinista.
+3. **Recolección básica**: instanciar nodos de recursos en el mundo y permitir que un colono los marque y “consuma”.
+4. **Módulo de música**: abstraer `Music` en un `AudioDirector` que permita cambiar de pista según bioma y evento (preparando 0.0.8).
+5. **Perf harness**: script en `tools/` que corra el juego en headless y registre FPS/allocs para cada commit del sprint.
