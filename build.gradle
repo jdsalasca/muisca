@@ -21,18 +21,22 @@ subprojects {
     plugins.withType(JavaPlugin).configureEach {
         java {
             toolchain {
-                languageVersion = JavaLanguageVersion.of(25)
+                // Usamos JDK 21 para mayor compatibilidad con LWJGL 3.3.x en runtime
+                languageVersion = JavaLanguageVersion.of(21)
             }
         }
     }
 
     tasks.withType(JavaCompile).configureEach {
         options.encoding = "UTF-8"
+        // Compilamos apuntando a release 21 para asegurar que el código corra bien con un runtime 21
+        options.release = 21
     }
 
     tasks.withType(JavaExec).configureEach {
+        // Ejecutamos las apps (desktop:run) con JDK 21
         javaLauncher = javaToolchains.launcherFor {
-            languageVersion = JavaLanguageVersion.of(25)
+            languageVersion = JavaLanguageVersion.of(21)
         }
     }
 }
