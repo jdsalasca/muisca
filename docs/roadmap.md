@@ -13,6 +13,7 @@ El objetivo es entregar builds cortas y tocables cada iteración, siempre con fo
 | **0.0.5** | Decisiones/reputación | Flags persistentes, cadena “puente o peaje”, facción local que modifica comercio; validador de nodos JSON. | ✅ Reputación y decisiones guardadas/cargadas; UI in-game. |
 | **0.0.6** | Combate/magia | Stats, talentos iniciales, 2 escuelas (Ceniza/Juramento), 3 enemigos IA, mini-jefe y ecosistema con consejo de ancianos. | ✅ Encuentro jefe ≤3 min, telemetría + guardados persistentes. |
 | 0.0.6.1 (parche) | Visual/movimiento | Overlay día/noche, clima lluvia `F3`, passability de agua y worldgen con spawn central. | ✅ HUD actualizado y slice estable en Java 25. |
+| 0.0.6.2 (parche) | Gameplay clima/día-noche | Penalización de regen en lluvia/noche; regrowth de flora acelerado con lluvia. | ✅ Build/run correctos en JDK 25; gameplay enlazado a clima/tiempo. |
 | **0.0.7** | Economía/agricultura | Cultivos (3 plantas), estaciones ligeras, comercio con reputación + escasez, segundo bioma jugable. | Colonia se sostiene 10 min solo con cultivos. |
 | **0.0.8** | Eventos + audio reactivo | Eventos (migrante, ataque menor, tormenta), capas de música/SFX por bioma/clima, progreso de rasgos. | Eventos se disparan cada 6–10 min, sistema de música sin cortes audibles. |
 | **0.0.9** | Facciones/guerras | 3 facciones con tensiones, mapa estratégico, asaltos/tributos/treguas, diplomacia UI. | Simulación mínima 20 min sin GC spikes >10 ms. |

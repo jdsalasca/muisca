@@ -26,3 +26,8 @@
 - Generador de mundo con FBM suavizado y sesgo radial para spawn central.
 - Script `run-desktop.ps1`: `-GradleInfo` (evita ambigüedad con PowerShell) y `-RuntimeJdk 21|25` para seleccionar runtime.
 - Desktop `run` agrega `jvmArgs --enable-native-access=ALL-UNNAMED` para preparar compatibilidad con Java 25.
+
+## Parche 0.0.6.2 (gameplay clima/día-noche)
+- Penalización de regeneración (stamina/focus) en lluvia y de noche: `CombatResourceSystem.setRegenScale` aplicado cada frame.
+- Regrowth de flora acelerado cuando llueve: `EnvironmentRegrowthSystem.setWeatherRegrowMultiplier` multiplica `JobBoard.update` y `randomRegrow`.
+- Verificación en JDK 25 (runtime por defecto) y opción `-RuntimeJdk 21|25` para comparar warnings.

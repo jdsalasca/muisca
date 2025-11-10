@@ -20,6 +20,21 @@ All notable changes to this project will be documented here. The format loosely 
 - Se evita caminar sobre agua al validar transitabilidad del tile antes de aplicar movimiento.
 - Se corrige el problema intermitente donde la tecla Shift derecha no activaba el sprint en algunos teclados.
 
+## [0.0.6.2] - 2025-11-10
+
+### Added
+- Integración gameplay de clima/día-noche:
+  - Penalización de regeneración de recursos (stamina/focus) en lluvia y de noche mediante un factor global en `CombatResourceSystem`.
+  - Aceleración de regrowth de flora cuando llueve a través de `EnvironmentRegrowthSystem` (multiplicador aplicado a sitios de tala y regeneración aleatoria).
+
+### Changed
+- `SettlementScreen` calcula la intensidad del día y la penalización por lluvia cada frame y aplica:
+  - `setRegenScale(...)` al `CombatResourceSystem` para ajustar regen.
+  - `setWeatherRegrowMultiplier(...)` al `EnvironmentRegrowthSystem` para aumentar la regeneración ambiental.
+
+### Notes
+- Verificado en JDK 25: build y run correctos; se mantienen advertencias de LWJGL relacionadas con `sun.misc.Unsafe` (pendiente actualización de backend).
+
 ## [0.0.6] - 2025-11-12
 
 ### Added
