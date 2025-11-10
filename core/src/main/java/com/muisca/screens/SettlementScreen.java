@@ -5,6 +5,8 @@ import com.badlogic.ashley.core.Engine;
 import com.badlogic.ashley.core.Entity;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
+import com.badlogic.gdx.InputAdapter;
+import com.badlogic.gdx.InputMultiplexer;
 import com.badlogic.gdx.ScreenAdapter;
 import com.badlogic.gdx.audio.Music;
 import com.badlogic.gdx.files.FileHandle;
@@ -142,7 +144,7 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
     private final EnemyFactory enemyFactory;
     private final ReputationTracker reputationTracker = new ReputationTracker();
     private final DecisionState decisionState = new DecisionState();
-    private final DecisionEngine decisionEngine;
+    private DecisionEngine decisionEngine;
     private final SaveManager saveManager = new SaveManager("slot1");
     private final DamageTelemetry damageTelemetry;
     private final SystemTelemetry systemTelemetry;
@@ -176,6 +178,11 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
     private CombatResourceSystem combatResourceSystem;
     private EnvironmentRegrowthSystem environmentRegrowthSystem;
 
+    // Estado de arranque y diagnóstico
+    private boolean initOk = true;
+    private final Array<String> initErrors = new Array<>();
+    private InputAdapter debugKeyLogger;
+
     public SettlementScreen(MuiscaGame game) {
         this.game = game;
         this.batch = game.getSharedBatch();
@@ -203,19 +210,63 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         this.worldCenterY = centerY;
         this.craftStation = new Vector2(centerX + 72f, centerY);
         this.floraField = new FloraField(WORLD_WIDTH_TILES, WORLD_HEIGHT_TILES);
-        this.elderLibrary = ElderLibrary.load(Gdx.files.internal("data/elders.json"));
+        // Carga robusta de elders
+        ElderLibrary eldersTmp;
+        try {
+            eldersTmp = ElderLibrary.load(Gdx.files.internal("data/elders.json"));
+            Gdx.app.log("Startup", "Elders cargados correctamente");
+        } catch (Exception ex) {
+            recordInitError("data/elders.json", ex);
+            eldersTmp = new ElderLibrary();
+        }
+        this.elderLibrary = eldersTmp;
         this.townPlaza = new Vector2(centerX + 32f, centerY - 48f);
 
-        this.spellLibrary = SpellLibrary.load(Gdx.files.internal("data/spells"));
+        // Carga robusta de spells
+        SpellLibrary spellsTmp;
+        try {
+            spellsTmp = SpellLibrary.load(Gdx.files.internal("data/spells"));
+            Gdx.app.log("Startup", "Spells cargados correctamente");
+        } catch (Exception ex) {
+            recordInitError("data/spells", ex);
+            spellsTmp = new SpellLibrary();
+        }
+        this.spellLibrary = spellsTmp;
         this.enemyFactory = new EnemyFactory(spellLibrary);
         this.jobBoard = new JobBoard(worldMap, TILE_SIZE, 18);
-        this.recipeBook = RecipeBook.load(Gdx.files.internal("data/recipes/woodworking.json"));
+        // Carga robusta de recetas
+        RecipeBook recipesTmp;
+        try {
+            recipesTmp = RecipeBook.load(Gdx.files.internal("data/recipes/woodworking.json"));
+            Gdx.app.log("Startup", "Recetas cargadas correctamente");
+        } catch (Exception ex) {
+            recordInitError("data/recipes/woodworking.json", ex);
+            recipesTmp = new RecipeBook();
+        }
+        this.recipeBook = recipesTmp;
         this.craftingQueue = new CraftingQueue(recipeBook, inventory, craftStation);
-        this.structureLibrary = StructureLibrary.load(Gdx.files.internal("data/structures/basic.json"));
+        // Carga robusta de estructuras
+        StructureLibrary structuresTmp;
+        try {
+            structuresTmp = StructureLibrary.load(Gdx.files.internal("data/structures/basic.json"));
+            Gdx.app.log("Startup", "Estructuras cargadas correctamente");
+        } catch (Exception ex) {
+            recordInitError("data/structures/basic.json", ex);
+            structuresTmp = new StructureLibrary();
+        }
+        this.structureLibrary = structuresTmp;
         this.structureManager = new StructureManager(structureLibrary, inventory);
         this.inventory.bindTelemetry(inventoryTelemetry);
-        DecisionGraph decisionGraph = DecisionGraph.load(Gdx.files.internal("data/decisions/bridge_toll.json"));
-        this.decisionEngine = new DecisionEngine(decisionGraph, inventory, reputationTracker, decisionState);
+        // Carga robusta de decisiones
+        DecisionEngine decisionTmp = null;
+        try {
+            DecisionGraph decisionGraph = DecisionGraph.load(Gdx.files.internal("data/decisions/bridge_toll.json"));
+            decisionTmp = new DecisionEngine(decisionGraph, inventory, reputationTracker, decisionState);
+            Gdx.app.log("Startup", "Decisiones cargadas correctamente");
+        } catch (Exception ex) {
+            recordInitError("data/decisions/bridge_toll.json", ex);
+        }
+        this.decisionEngine = decisionTmp;
 
         this.engine = new Engine();
         engine.addSystem(new InputMovementSystem(worldMap, TILE_SIZE));
@@ -243,10 +294,30 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         craftingQueue.clearJobs();
         applyCombatSnapshot(snapshot);
 
-        ambientTrack = Gdx.audio.newMusic(Gdx.files.internal("audio/proto_theme.wav"));
-        ambientTrack.setLooping(true);
-        ambientTrack.setVolume(0.4f);
-        ambientTrack.play();
+        // Carga robusta de música ambiente
+        try {
+            ambientTrack = Gdx.audio.newMusic(Gdx.files.internal("audio/proto_theme.wav"));
+            ambientTrack.setLooping(true);
+            ambientTrack.setVolume(0.4f);
+            ambientTrack.play();
+        } catch (Exception ex) {
+            recordInitError("audio/proto_theme.wav", ex);
+        }
+
+        // Registrar InputProcessor de diagnóstico (logger de teclas)
+        debugKeyLogger = new InputAdapter() {
+            @Override
+            public boolean keyDown(int keycode) {
+                Gdx.app.log("Input", "keyDown: " + Input.Keys.toString(keycode));
+                return false;
+            }
+            @Override
+            public boolean keyUp(int keycode) {
+                Gdx.app.log("Input", "keyUp: " + Input.Keys.toString(keycode));
+                return false;
+            }
+        };
+        Gdx.input.setInputProcessor(new InputMultiplexer(debugKeyLogger));
     }
 
     private void createColonist(String name, float x, float y, TalentId... talents) {
@@ -615,12 +686,15 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
     private void handleToggles() {
         if (Gdx.input.isKeyJustPressed(Input.Keys.C)) {
             showChunks = !showChunks;
+            Gdx.app.log("Input", "C -> showChunks=" + showChunks);
         }
         if (Gdx.input.isKeyJustPressed(Input.Keys.F1)) {
             showDebug = !showDebug;
+            Gdx.app.log("Input", "F1 -> showDebug=" + showDebug);
         }
         if (Gdx.input.isKeyJustPressed(Input.Keys.F2)) {
             showPerfOverlay = !showPerfOverlay;
+            Gdx.app.log("Input", "F2 -> showPerfOverlay=" + showPerfOverlay);
         }
         if (Gdx.input.isKeyJustPressed(Input.Keys.F3)) {
             isRaining = !isRaining;
@@ -628,15 +702,18 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
             if (systemTelemetry != null) {
                 systemTelemetry.logWeatherToggle(isRaining, rainIntensity);
             }
+            Gdx.app.log("Input", "F3 -> isRaining=" + isRaining + ", rainIntensity=" + rainIntensity);
         }
         if (Gdx.input.isKeyJustPressed(Input.Keys.TAB)) {
             selectColonist((controlledColonistIndex + 1) % colonistEntities.size);
+            Gdx.app.log("Input", "TAB -> controlledColonistIndex=" + controlledColonistIndex);
         }
     }
 
     private void handleActions() {
         if (Gdx.input.isKeyJustPressed(Input.Keys.H)) {
             toggleDecisionOverlay();
+            Gdx.app.log("Input", "H -> decisionVisible=" + decisionVisible);
         }
         if (decisionVisible) {
             handleDecisionInput();
@@ -644,15 +721,19 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         }
         if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_1)) {
             queueRecipe("plank_bundle");
+            Gdx.app.log("Input", "1 -> queue plank_bundle");
         }
         if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_2)) {
             queueRecipe("camp_bed");
+            Gdx.app.log("Input", "2 -> queue camp_bed");
         }
         if (Gdx.input.isKeyJustPressed(Input.Keys.B)) {
             placeStructure("camp_bed");
+            Gdx.app.log("Input", "B -> place camp_bed");
         }
         if (Gdx.input.isKeyJustPressed(Input.Keys.N)) {
             placeStructure("storage_crate");
+            Gdx.app.log("Input", "N -> place storage_crate");
         }
     }
 
@@ -688,6 +769,7 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
             saveManager.write(inventory, structureManager, jobBoard, reputationTracker, decisionState,
                     captureCombatSnapshot());
             showStatus("Partida guardada.");
+            Gdx.app.log("Input", "F5 -> Guardar partida");
         }
         if (Gdx.input.isKeyJustPressed(Input.Keys.F9)) {
             CombatSnapshot snapshot = saveManager.read(inventory, structureManager, jobBoard, reputationTracker, decisionState);
@@ -699,7 +781,17 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
             selectColonist(controlledColonistIndex);
             applyCombatSnapshot(snapshot);
             showStatus("Partida cargada.");
+            Gdx.app.log("Input", "F9 -> Cargar partida");
         }
+    }
+
+    // Registro de error de arranque con fallback de estado
+    private void recordInitError(String context, Exception ex) {
+        initOk = false;
+        String msg = "Fallo al cargar " + context + ": " + ex.getMessage();
+        initErrors.add(msg);
+        Gdx.app.error("Startup", msg, ex);
+        showStatus("Error de inicio: " + context);
     }
 
     private void applyInput(float delta) {
@@ -936,6 +1028,18 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
                     .append(" | Native ").append(String.format(Locale.US, "%.1f MB", nativeHeap));
             font.draw(batch, builder, camera.position.x + 240, camera.position.y + 340);
         }
+
+        // Safe Boot HUD: mostrar errores de arranque si los hubo (lado derecho)
+        if (!initOk) {
+            builder.setLength(0);
+            builder.append("[SAFE BOOT] Algunos assets no cargaron.");
+            font.draw(batch, builder, camera.position.x + 240, camera.position.y + 320);
+            int maxList = Math.min(3, initErrors.size);
+            for (int i = 0; i < maxList; i++) {
+                font.draw(batch, "- " + initErrors.get(i), camera.position.x + 240, camera.position.y + 300 - 20f * i);
+            }
+            font.draw(batch, "Atajos: F1 debug, F2 perf, F3 clima, WASD, 1/2 craft, B/N construir", camera.position.x + 240, camera.position.y + 240);
+        }
     }
 
     private void drawOverlays() {
@@ -1088,6 +1192,10 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
     }
 
     private void drawDecisionOverlay() {
+        if (decisionEngine == null) {
+            font.draw(batch, "[Decisiones deshabilitadas]", camera.position.x - 620, camera.position.y - 280);
+            return;
+        }
         DecisionNode node = decisionEngine.getCurrentNode();
         if (node == null) {
             font.draw(batch, "[No hay decisiones activas]", camera.position.x - 620, camera.position.y - 280);
@@ -1104,6 +1212,11 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
     }
 
     private void toggleDecisionOverlay() {
+        if (decisionEngine == null) {
+            decisionVisible = false;
+            showStatus("Decisiones no disponibles.");
+            return;
+        }
         if (!decisionVisible && decisionEngine.getCurrentNode() == null) {
             decisionEngine.resetToEntry();
         }
@@ -1111,6 +1224,10 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
     }
 
     private void handleDecisionInput() {
+        if (decisionEngine == null) {
+            decisionVisible = false;
+            return;
+        }
         DecisionNode node = decisionEngine.getCurrentNode();
         if (node == null) {
             decisionVisible = false;

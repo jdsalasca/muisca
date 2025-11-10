@@ -1,0 +1,9 @@
+timestamp,event,details
+0.041,regen_env_update,"day=0.50, raining=false, rain=0.70, regenScale=0.925, regrowX=1.00"
+1.681,regen_env_update,"day=0.70, raining=false, rain=0.70, regenScale=0.955, regrowX=1.00"
+3.748,regen_env_update,"day=0.90, raining=false, rain=0.70, regenScale=0.985, regrowX=1.00"
+0.051,regen_env_update,"day=0.50, raining=false, rain=0.70, regenScale=0.925, regrowX=1.00"
+1.692,regen_env_update,"day=0.70, raining=false, rain=0.70, regenScale=0.955, regrowX=1.00"
+3.759,regen_env_update,"day=0.90, raining=false, rain=0.70, regenScale=0.985, regrowX=1.00"
+0.051,regen_env_update,"day=0.50, raining=false, rain=0.70, regenScale=0.925, regrowX=1.00"
+1.693,regen_env_update,"day=0.70, raining=false, rain=0.70, regenScale=0.955, regrowX=1.00"
