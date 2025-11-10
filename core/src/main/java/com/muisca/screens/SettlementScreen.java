@@ -127,7 +127,7 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
     private final ComponentMapper<EnemyComponent> enemyMapper = ComponentMapper.getFor(EnemyComponent.class);
     private final ComponentMapper<SpellbookComponent> spellbookMapper = ComponentMapper.getFor(SpellbookComponent.class);
     private final ComponentMapper<TalentComponent> talentMapper = ComponentMapper.getFor(TalentComponent.class);
-    private final ComponentMapper<ForceComponent> forceMapper = ComponentMapper.getFor(ForceComponent.class);
+    private final ComponentMapper<ForceComponent> forceComponentMapper = ComponentMapper.getFor(ForceComponent.class);
 
     private final JobBoard jobBoard;
     private final Inventory inventory = new Inventory();
@@ -163,6 +163,11 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
     private final Array<Entity> enemyEntities = new Array<>();
     private final Texture enemyTexture;
     private boolean showPerfOverlay = false;
+    // Simple weather and lighting
+    private boolean isRaining = false;
+    private float rainIntensity = 0.7f; // 0..1
+    private final Array<Vector2> rainDrops = new Array<>();
+    private float rainSpawnAccumulator = 0f;
 
     public SettlementScreen(MuiscaGame game) {
         this.game = game;
@@ -435,7 +440,7 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
             if (statusComponent != null) {
                 restoreStatuses(statusComponent, saveColonist.statuses);
             }
-            ForceComponent force = forceMapper.get(entity);
+            ForceComponent force = forceComponentMapper.get(entity);
             if (force != null) {
                 force.velocity.setZero();
             }
@@ -512,7 +517,7 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         if (statusComponent != null) {
             restoreStatuses(statusComponent, saveEnemy.statuses);
         }
-        ForceComponent force = forceMapper.get(entity);
+        ForceComponent force = forceComponentMapper.get(entity);
         if (force != null) {
             force.velocity.setZero();
         }
@@ -570,6 +575,7 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         applyInput(delta);
         dayTimer = (dayTimer + delta * 0.04f) % 1f;
         dayCycle.setFraction(dayTimer);
+        updateWeather(delta);
         engine.update(delta);
         damageTelemetry.update(delta);
         applyElderSpirit(delta);
@@ -586,6 +592,10 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         }
         if (Gdx.input.isKeyJustPressed(Input.Keys.F2)) {
             showPerfOverlay = !showPerfOverlay;
+        }
+        if (Gdx.input.isKeyJustPressed(Input.Keys.F3)) {
+            isRaining = !isRaining;
+            showStatus(isRaining ? "Clima: lluvia ligera" : "Clima: despejado");
         }
         if (Gdx.input.isKeyJustPressed(Input.Keys.TAB)) {
             selectColonist((controlledColonistIndex + 1) % colonistEntities.size);
@@ -666,7 +676,8 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         if (Gdx.input.isKeyPressed(Input.Keys.S)) inputDirection.y -= 1f;
         if (Gdx.input.isKeyPressed(Input.Keys.A)) inputDirection.x -= 1f;
         if (Gdx.input.isKeyPressed(Input.Keys.D)) inputDirection.x += 1f;
-        float speed = Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT) ? 320f : 200f;
+        boolean fast = Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT) || Gdx.input.isKeyPressed(Input.Keys.SHIFT_RIGHT);
+        float speed = fast ? 320f : 200f;
         for (int i = 0; i < colonistEntities.size; i++) {
             InputControlComponent input = inputMapper.get(colonistEntities.get(i));
             if (i == controlledColonistIndex) {
@@ -806,7 +817,7 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
 
     private void drawHud(float delta) {
         StringBuilder builder = new StringBuilder();
-        builder.append("Muisca v0.0.6 | Tab colonos | WASD mover | Shift correr | Q/E hechizos | 1=Tablones | 2=Cama | B/N planos | C grilla | F1 debug | F2 perf\n");
+        builder.append("Muisca v0.0.6 | Tab colonos | WASD mover | Shift correr | Q/E hechizos | 1=Tablones | 2=Cama | B/N planos | C grilla | F1 debug | F2 perf | F3 clima\n");
         builder.append("Inventario: ").append(inventory.summarize()).append('\n');
         builder.append("Pedidos carpintería: ");
         boolean first = true;
@@ -971,6 +982,62 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
                     stats.stats.getHealthRatio(), stats.stats.isAlive() ? HP_BAR_ENEMY : ENEMY_DEFEATED_COLOR);
         }
         shapeRenderer.end();
+
+        // Day/Night tint overlay (draw last to darken scene)
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+        float intensity = MathUtils.sin(dayTimer * MathUtils.PI2) * 0.5f + 0.5f; // 0 (midnight) .. 1 (noon)
+        float darkness = MathUtils.clamp(0.65f * (1f - intensity) + (isRaining ? 0.1f : 0f), 0f, 0.75f);
+        if (darkness > 0.01f) {
+            shapeRenderer.setColor(0f, 0f, 0f, darkness);
+            float halfW = camera.viewportWidth / 2f;
+            float halfH = camera.viewportHeight / 2f;
+            float camLeft = camera.position.x - halfW;
+            float camBottom = camera.position.y - halfH;
+            shapeRenderer.rect(camLeft, camBottom, camera.viewportWidth, camera.viewportHeight);
+        }
+
+        // Rain overlay
+        if (isRaining && rainDrops.size > 0) {
+            shapeRenderer.setColor(0.6f, 0.7f, 0.9f, 0.45f);
+            for (Vector2 drop : rainDrops) {
+                shapeRenderer.rectLine(drop.x, drop.y, drop.x + 0f, drop.y - 10f, 1.5f);
+            }
+        }
+        shapeRenderer.end();
+    }
+
+    private void updateWeather(float delta) {
+        if (!isRaining) {
+            rainDrops.clear();
+            rainSpawnAccumulator = 0f;
+            return;
+        }
+        // Move existing drops
+        float halfW = camera.viewportWidth / 2f;
+        float halfH = camera.viewportHeight / 2f;
+        float camLeft = camera.position.x - halfW;
+        float camRight = camera.position.x + halfW;
+        float camBottom = camera.position.y - halfH;
+        float camTop = camera.position.y + halfH;
+        for (int i = rainDrops.size - 1; i >= 0; i--) {
+            Vector2 d = rainDrops.get(i);
+            d.y -= (220f + MathUtils.random(-40f, 40f)) * delta;
+            d.x += MathUtils.random(-10f, 10f) * delta; // slight wind jitter
+            if (d.y < camBottom - 20f || d.x < camLeft - 20f || d.x > camRight + 20f) {
+                rainDrops.removeIndex(i);
+            }
+        }
+        // Spawn new drops based on intensity and viewport area
+        rainSpawnAccumulator += delta * rainIntensity;
+        int spawnCount = (int) (rainSpawnAccumulator * 120f);
+        if (spawnCount > 0) {
+            rainSpawnAccumulator -= spawnCount / 120f;
+            for (int i = 0; i < spawnCount; i++) {
+                float x = MathUtils.random(camLeft, camRight);
+                float y = MathUtils.random(camTop - 10f, camTop + 30f);
+                rainDrops.add(new Vector2(x, y));
+            }
+        }
     }
 
     private boolean isOnScreen(float worldX, float worldY, float margin) {

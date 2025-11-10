@@ -59,6 +59,14 @@ Marca cada casilla cuando finalices la tarea (no antes) y enlaza el commit.
 - Próximo foco: historias de 0.0.7 (economía/cultivos) una vez terminada la estabilización de combate.
 
 **Sesión 2025-11-15 – Codex (GPT-5)**  
+- Arreglo de compilación (`SettlementScreen` usa `forceComponentMapper` con nombre único).  
+- `MuiscaGame` ahora respeta `-Dmuisca.autoQuitSeconds` para auto-cerrar el slice (útil en CI/headless). README actualizado con la bandera adicional.
+
+**Hand-off Codex – 2025-11-15**
+- `tools/run-desktop.ps1` + `README` documentan cómo activar auto-exit (`-AutoQuitSeconds` agrega `-Dmuisca.autoQuitSeconds`).  
+- No se corrió `desktop:run` completo (se requiere GUI), pero `desktop:classes` pasa y el juego puede auto-cerrar con la nueva propiedad.
+
+**Sesión 2025-11-15 – Codex (GPT-5)**  
 - Añadidos ancianos (`elders.json`), rutinas sociales (`TownLifeSystem`) y aura que alimenta el ecosistema.  
 - Nuevo campo de flora regenerativa conectado al JobBoard; se implementó el overlay de rendimiento (`F2`) y culling para tiles/overlays.
 

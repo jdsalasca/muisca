@@ -3,6 +3,7 @@ package com.muisca.colony;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
 import com.muisca.crafting.Recipe;
+import com.badlogic.gdx.utils.ObjectIntMap;
 import com.muisca.world.WorldMap;
 
 /**
@@ -21,6 +22,10 @@ public class Colonist {
     private final Vector2 wanderTarget = new Vector2();
     private final Vector2 taskTarget = new Vector2();
     private final Vector2 temp = new Vector2();
+    private final ColonistSkills skills = new ColonistSkills();
+    private final ObjectIntMap<String> pack = new ObjectIntMap<>();
+    private final int packCapacity = 12;
+    private String role = "Colono";
 
     private float hunger = 0.35f;
     private float spirit = 0.8f;
@@ -56,6 +61,18 @@ public class Colonist {
 
     public float getFatigue() {
         return fatigue;
+    }
+
+    public ColonistSkills getSkills() {
+        return skills;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
+    }
+
+    public String getRole() {
+        return role;
     }
 
     public TaskType getCurrentTask() {
@@ -111,7 +128,7 @@ public class Colonist {
             hunger = MathUtils.clamp(hunger + delta * 0.005f, 0f, 1f);
             return false;
         }
-        taskProgress += delta;
+        taskProgress += delta * skills.getGatherMultiplier();
         if (taskProgress >= 1.2f) {
             spirit = MathUtils.clamp(spirit + 0.08f, 0f, 1f);
             hunger = MathUtils.clamp(hunger - 0.08f, 0f, 1f);
@@ -139,7 +156,7 @@ public class Colonist {
             move(temp.x, temp.y, map, tileSize);
             return false;
         }
-        taskProgress += delta;
+        taskProgress += delta * skills.getCraftMultiplier();
         return taskProgress >= activeRecipe.getWorkTime();
     }
 
@@ -166,8 +183,63 @@ public class Colonist {
         spirit = MathUtils.clamp(spirit + delta, 0f, 1f);
     }
 
+    public int getPackLoad() {
+        int total = 0;
+        for (ObjectIntMap.Entry<String> entry : pack.entries()) {
+            total += entry.value;
+        }
+        return total;
+    }
+
+    public int storeInPack(String itemId, int amount) {
+        if (amount <= 0) {
+            return 0;
+        }
+        int load = getPackLoad();
+        int space = Math.max(0, packCapacity - load);
+        int stored = Math.min(space, amount);
+        if (stored > 0) {
+            pack.getAndIncrement(itemId, 0, stored);
+        }
+        return stored;
+    }
+
+    public ObjectIntMap<String> drainPack() {
+        ObjectIntMap<String> snapshot = new ObjectIntMap<>();
+        for (ObjectIntMap.Entry<String> entry : pack.entries()) {
+            snapshot.put(entry.key, entry.value);
+        }
+        pack.clear();
+        return snapshot;
+    }
+
+    public ObjectIntMap<String> peekPack() {
+        return pack;
+    }
+
     private void move(float dx, float dy, WorldMap map, int tileSize) {
-        position.add(dx, dy);
+        // Attempt axis-separated movement, preventing entry into non-passable tiles (e.g., water).
+        float targetX = position.x + dx;
+        float targetY = position.y + dy;
+
+        // Try X movement
+        if (dx != 0f) {
+            float tryX = MathUtils.clamp(targetX, 0f, map.getWidth() * tileSize);
+            int tileX = (int) (tryX / tileSize);
+            int tileY = (int) (position.y / tileSize);
+            if (map.getTile(tileX, tileY).isPassable()) {
+                position.x = tryX;
+            }
+        }
+        // Try Y movement
+        if (dy != 0f) {
+            float tryY = MathUtils.clamp(targetY, 0f, map.getHeight() * tileSize);
+            int tileX = (int) (position.x / tileSize);
+            int tileY = (int) (tryY / tileSize);
+            if (map.getTile(tileX, tileY).isPassable()) {
+                position.y = tryY;
+            }
+        }
         clampToWorld(map, tileSize);
     }
 

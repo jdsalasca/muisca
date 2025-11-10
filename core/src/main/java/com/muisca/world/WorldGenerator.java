@@ -21,10 +21,20 @@ public class WorldGenerator {
 
     public WorldMap generate() {
         TileType[][] tiles = new TileType[width][height];
+        float centerX = width / 2f;
+        float centerY = height / 2f;
+        float maxDist = (float) Math.sqrt(centerX * centerX + centerY * centerY);
         for (int x = 0; x < width; x++) {
             for (int y = 0; y < height; y++) {
-                float elevation = fbm(x, y, 0.045f, 4, 0.55f);
-                float humidity = fbm(x + 239, y - 411, 0.07f, 3, 0.65f);
+                // Slightly lower frequency with more octaves for smoother, richer terrain
+                float elevation = fbm(x, y, 0.028f, 5, 0.56f);
+                float humidity = fbm(x + 239, y - 411, 0.06f, 4, 0.62f);
+                // Radial bias: encourage land around the center where the town spawns
+                float dx = x - centerX;
+                float dy = y - centerY;
+                float dist = (float) Math.sqrt(dx * dx + dy * dy);
+                float landMask = MathUtils.clamp(1f - (dist / maxDist), 0f, 1f);
+                elevation += landMask * 0.35f - 0.12f;
                 elevation = normalize(elevation);
                 humidity = normalize(humidity);
                 tiles[x][y] = TileType.fromSample(elevation, humidity);

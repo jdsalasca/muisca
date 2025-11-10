@@ -16,4 +16,8 @@ application {
 tasks.named("run", JavaExec).configure {
     workingDir = rootProject.file("assets")
     standardInput = System.in
+    String autoQuit = System.getProperty("muisca.autoQuitSeconds")
+    if (autoQuit != null && !autoQuit.isBlank()) {
+        systemProperty("muisca.autoQuitSeconds", autoQuit)
+    }
 }

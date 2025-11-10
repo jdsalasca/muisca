@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented here. The format loosely follows [Keep a Changelog](https://keepachangelog.com/) while the versioning scheme will track playable milestones.
 
+## [0.0.6.1] - 2025-11-10
+
+### Added
+- Overlay de día/noche: oscurecimiento suave basado en el `dayTimer` e intensidad del ciclo.
+- Sistema de clima (lluvia): partículas de lluvia dentro del área visible de la cámara; toggle rápido con `F3`.
+- HUD actualizado con la instrucción “F3 clima” para descubrir el nuevo toggle.
+
+### Changed
+- Movimiento con colisiones por eje: los colonos ahora intentan desplazarse separando los ejes X/Y y evitan entrar a tiles no transitables.
+- Passability en tiles: `TileType` incorpora `isPassable()` y `isWater()`; el bioma `LAGUNA_SAGRADA` se marca como no transitable (agua).
+- Generación de mundo mejorada: FBM más suave y sesgo radial de elevación que favorece tierra cerca del centro para mejorar el área de spawn.
+- Sprint detecta ambas teclas Shift (izquierda y derecha) para mayor compatibilidad de teclado.
+
+### Fixed
+- Se evita caminar sobre agua al validar transitabilidad del tile antes de aplicar movimiento.
+- Se corrige el problema intermitente donde la tecla Shift derecha no activaba el sprint en algunos teclados.
+
 ## [0.0.6] - 2025-11-12
 
 ### Added

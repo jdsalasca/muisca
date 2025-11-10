@@ -21,6 +21,8 @@ public class StructureLibrary {
             float width = structure.getFloat("width", 32f);
             float height = structure.getFloat("height", 32f);
             Color color = Color.valueOf(structure.getString("color", "A67C52"));
+            float storage = structure.getFloat("storageCapacity", 0f);
+            String category = structure.getString("category", "generic");
             ObjectIntMap<String> cost = new ObjectIntMap<>();
             JsonValue costNode = structure.get("cost");
             if (costNode != null) {
@@ -28,7 +30,7 @@ public class StructureLibrary {
                     cost.put(item.name, item.asInt());
                 }
             }
-            StructureBlueprint blueprint = new StructureBlueprint(id, name, width, height, color, cost);
+            StructureBlueprint blueprint = new StructureBlueprint(id, name, width, height, color, cost, storage, category);
             library.blueprints.put(id, blueprint);
         }
         return library;

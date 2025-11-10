@@ -29,6 +29,20 @@ public enum TileType {
         return color;
     }
 
+    /**
+     * Simple passability rule: water is not walkable, everything else is.
+     */
+    public boolean isPassable() {
+        return this != LAGUNA_SAGRADA;
+    }
+
+    /**
+     * Convenience flag to identify water tiles for gameplay/effects.
+     */
+    public boolean isWater() {
+        return this == LAGUNA_SAGRADA;
+    }
+
     public static TileType fromSample(float elevation, float humidity) {
         if (elevation < 0.2f) {
             return LAGUNA_SAGRADA;

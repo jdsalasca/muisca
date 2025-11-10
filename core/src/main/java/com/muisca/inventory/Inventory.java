@@ -3,6 +3,7 @@ package com.muisca.inventory;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.ObjectIntMap;
 import com.badlogic.gdx.utils.StringBuilder;
+import com.muisca.structures.StructureManager;
 
 /**
  * Shared colony inventory (per settlement) used for crafting and construction.
@@ -10,6 +11,7 @@ import com.badlogic.gdx.utils.StringBuilder;
 public class Inventory {
 
     private final ObjectIntMap<String> items = new ObjectIntMap<>();
+    private StructureManager storageManager;
 
     public void add(String itemId, int amount) {
         if (amount <= 0) {
@@ -40,8 +42,15 @@ public class Inventory {
             if (items.get(entry.key, 0) <= 0) {
                 items.remove(entry.key, 0);
             }
+            if (storageManager != null) {
+                storageManager.withdrawFromStorage(entry.key, entry.value);
+            }
         }
         return true;
+    }
+
+    public void bindStorageManager(StructureManager manager) {
+        this.storageManager = manager;
     }
 
     public ObjectIntMap<String> snapshot() {

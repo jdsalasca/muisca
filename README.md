@@ -6,6 +6,7 @@ Simulador de colonia con tintes RPG inspirado en RimWorld, Dwarf Fortress y la c
 
 | Versión | Fecha | Notas |
 | --- | --- | --- |
+| 0.0.6.1 | 2025-11-10 | Parche visual/jugable: overlay día/noche, clima lluvia con `F3`, prevención de caminar sobre agua, generación de mundo suavizada con spawn central y sprint con ambas teclas Shift. |
 | 0.0.6 | 2025-11-12 | Sistema de combate/magia (stats/talentos Ceniza/Juramento), hechizos data-driven, encuentro de 3 enemigos + mini-jefe, telemetría a archivo y guardados que preservan stats/cooldowns/estados, consejeros ancianos y ecosistema regenerativo. |
 | 0.0.5 | 2025-11-11 | Sistema de decisiones/reputación (puente/peaje), flags persistentes, guardado/carga (`F5/F9`) e inventario/estructuras serializados. |
 | 0.0.4 | 2025-11-10 | Inventario compartido + recetas data-driven (madera→tablón→cama), cola de crafting, planos colocables (cama/caja) y HUD de recursos. |
@@ -48,7 +49,8 @@ Simulador de colonia con tintes RPG inspirado en RimWorld, Dwarf Fortress y la c
 ```powershell
 pwsh -ExecutionPolicy Bypass -File tools/run-desktop.ps1          # desktop:run por defecto (abre el slice)
 pwsh -File tools/run-desktop.ps1 desktop:classes                  # sólo compila
-pwsh -File tools/run-desktop.ps1 -Info -LogFile logs/build.log    # agrega flags/log personalizado
+pwsh -File tools/run-desktop.ps1 -GradleInfo -LogFile logs/build.log    # agrega flags/log personalizado
+pwsh -File tools/run-desktop.ps1 -GradleInfo -AutoQuitSeconds 8         # corre desktop:run y se cierra tras 8s (CI/headless)
 ```
 El helper `tools/run-desktop.ps1` instala/actualiza ambos JDKs si faltan, exporta `JAVA_HOME` al JDK 25 y pasa `-Dorg.gradle.java.home` con la ruta del JDK 21 antes de invocar `gradlew.bat`. Cada ejecución escribe la salida completa de Gradle (y del juego si corres `desktop:run`) en `logs/run-desktop-<timestamp>.log`. Para ver el stream en vivo desde otra terminal:
 ```powershell
@@ -56,9 +58,9 @@ Get-Content -Wait logs\run-desktop-YYYYMMDD-HHMMSS.log
 ```
 Flags útiles del helper:
 
-- `-Info` / `-GradleDebug`: propagan `--info` / `--debug` a Gradle para seguir el progreso detallado (configuración, tareas, timings).
+- `-GradleInfo` / `-GradleDebug`: propagan `--info` / `--debug` a Gradle para seguir el progreso detallado (configuración, tareas, timings).
 - `-LogFile <ruta>`: define manualmente dónde guardar los logs (útil para adjuntar a bugs).
-- Argumentos extra (`desktop:run --scan`) se pasan directo a Gradle.
+- Argumentos extra (`desktop:run --scan`) se pasan directo a Gradle. Añade `-AutoQuitSeconds <seg>` (o directamente `-Dmuisca.autoQuitSeconds=<seg>`) para que el slice se cierre automáticamente cuando corres `desktop:run` sin GUI.
 
 **Windows (manual):**
 ```cmd
@@ -73,7 +75,7 @@ Atajos actuales (v0.0.6):
 - `Shift` aplicar sprint temporal.
 - `Q`/`E` lanzar hechizos primario/secundario (Ceniza/Juramento).
 - `1`/`2` solicitar recetas (tablones/cama); `B`/`N` colocan planos si hay recursos suficientes.
-- `H` abre/cierra decisiones (elige con números), `F5` guarda, `F9` carga, `Tab` alterna colonos, `C` grilla, `F1` debug, `F2` overlay de rendimiento.
+- `H` abre/cierra decisiones (elige con números), `F5` guarda, `F9` carga, `Tab` alterna colonos, `C` grilla, `F1` debug, `F2` overlay de rendimiento, `F3` clima (lluvia ON/OFF).
 - Música ambiental (`assets/audio/proto_theme.wav`) se reproduce en loop al iniciar.
 
 ### Vida de la aldea y combate v0.0.6
