@@ -173,6 +173,11 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
     private boolean showFallbackOverlay = true;
     private int renderFrames = 0;
     private float renderSecondsAccum = 0f;
+    // Nuevos flags de depuración gráfica y seguridad de render
+    private boolean showWorldShapeOverlay = false;   // F5: pinta tiles con ShapeRenderer
+    private boolean showActorBoxes = false;          // F6: pinta cajas de actores
+    private boolean disableBatch = false;            // F7: deshabilita SpriteBatch para aislar problemas
+    private boolean batchAlive = true;               // se pone en false si begin/end arroja excepción
     // Simple weather and lighting
     private boolean isRaining = false;
     private float rainIntensity = 0.7f; // 0..1
@@ -193,6 +198,16 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         this.camera = new OrthographicCamera(1280, 720);
         this.font = new BitmapFont();
         this.shapeRenderer = new ShapeRenderer();
+        // Log de entorno gráfico para diagnósticos (GL y backbuffer)
+        try {
+            String glInfo = "GLVersion=" + Gdx.graphics.getGLVersion().getDebugVersionString()
+                    + " | GL30Available=" + Gdx.graphics.isGL30Available()
+                    + " | BackBuffer=" + Gdx.graphics.getBackBufferWidth() + "x" + Gdx.graphics.getBackBufferHeight()
+                    + " | Continuous=" + Gdx.graphics.isContinuousRendering();
+            Gdx.app.log("Graphics", glInfo);
+        } catch (Exception ignore) {
+            // No interrumpir la carga si el entorno no soporta alguna consulta
+        }
         FileHandle telemetryDir = Gdx.files.local("telemetry");
         if (!telemetryDir.exists()) {
             telemetryDir.mkdirs();
@@ -658,20 +673,45 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         Gdx.gl.glClearColor(sky.r, sky.g, sky.b, 1f);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
+        // Render seguro con SpriteBatch con gating y captura de errores
         batch.setProjectionMatrix(camera.combined);
-        batch.begin();
-        drawWorld();
-        drawStructures();
-        drawEnemies();
-        drawColonists();
-        drawHud(delta);
-        batch.end();
+        boolean willUseBatch = batchAlive && !disableBatch;
+        if (willUseBatch) {
+            try {
+                batch.begin();
+                drawWorld();
+                drawStructures();
+                drawEnemies();
+                drawColonists();
+                drawHud(delta);
+            } catch (Exception ex) {
+                batchAlive = false;
+                recordInitError("SpriteBatch-render", ex);
+                Gdx.app.error("Render", "SpriteBatch falló, activando modo solo shapes", ex);
+            } finally {
+                try {
+                    if (batch.isDrawing()) {
+                        batch.end();
+                    }
+                } catch (Exception endEx) {
+                    batchAlive = false;
+                    recordInitError("SpriteBatch-end", endEx);
+                }
+            }
+        }
 
         // Fallback visual para confirmar pipeline de render aunque algo de mundo falle
         if (showFallbackOverlay) {
             drawFallbackOverlay();
         }
 
+        // Overlays adicionales 100% con ShapeRenderer, independientes del SpriteBatch
+        if (showWorldShapeOverlay) {
+            drawWorldShapeOverlay();
+        }
+        if (showActorBoxes) {
+            drawActorBoxesOverlay();
+        }
         drawOverlays();
 
         // Heartbeat de render cada ~1s
@@ -734,6 +774,19 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
             showPerfOverlay = !showPerfOverlay;
             Gdx.app.log("Input", "F2 -> showPerfOverlay=" + showPerfOverlay);
         }
+        if (Gdx.input.isKeyJustPressed(Input.Keys.F5)) {
+            showWorldShapeOverlay = !showWorldShapeOverlay;
+            Gdx.app.log("Input", "F5 -> showWorldShapeOverlay=" + showWorldShapeOverlay);
+        }
+        if (Gdx.input.isKeyJustPressed(Input.Keys.F6)) {
+            showActorBoxes = !showActorBoxes;
+            Gdx.app.log("Input", "F6 -> showActorBoxes=" + showActorBoxes);
+        }
+        if (Gdx.input.isKeyJustPressed(Input.Keys.F7)) {
+            disableBatch = !disableBatch;
+            Gdx.app.log("Input", "F7 -> disableBatch=" + disableBatch + ", batchAlive=" + batchAlive);
+            showStatus(disableBatch ? "Modo solo shapes" : "SpriteBatch reactivado");
+        }
         if (Gdx.input.isKeyJustPressed(Input.Keys.F4)) {
             showFallbackOverlay = !showFallbackOverlay;
             Gdx.app.log("Input", "F4 -> showFallbackOverlay=" + showFallbackOverlay);
@@ -749,6 +802,71 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         if (Gdx.input.isKeyJustPressed(Input.Keys.TAB)) {
             selectColonist((controlledColonistIndex + 1) % colonistEntities.size);
             Gdx.app.log("Input", "TAB -> controlledColonistIndex=" + controlledColonistIndex);
+        }
+    }
+
+    // Dibuja los tiles visibles con ShapeRenderer, usando el mismo cálculo de color del mundo
+    private void drawWorldShapeOverlay() {
+        try {
+            float halfW = camera.viewportWidth / 2f;
+            float halfH = camera.viewportHeight / 2f;
+            float camLeft = camera.position.x - halfW;
+            float camRight = camera.position.x + halfW;
+            float camBottom = camera.position.y - halfH;
+            float camTop = camera.position.y + halfH;
+            int minX = Math.max(0, (int) (camLeft / TILE_SIZE));
+            int maxX = Math.min(worldMap.getWidth() - 1, (int) (camRight / TILE_SIZE) + 1);
+            int minY = Math.max(0, (int) (camBottom / TILE_SIZE));
+            int maxY = Math.min(worldMap.getHeight() - 1, (int) (camTop / TILE_SIZE) + 1);
+            shapeRenderer.setProjectionMatrix(camera.combined);
+            shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+            for (int x = minX; x <= maxX; x++) {
+                for (int y = minY; y <= maxY; y++) {
+                    float lush = floraField.sampleGrass(x, y);
+                    float bloom = floraField.sampleSprouts(x, y);
+                    tempColor.set(0.85f + lush * 0.15f,
+                            0.85f + bloom * 0.1f,
+                            0.9f + lush * 0.05f,
+                            0.25f);
+                    shapeRenderer.setColor(tempColor);
+                    shapeRenderer.rect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+                }
+            }
+            shapeRenderer.end();
+        } catch (Exception ex) {
+            Gdx.app.error("Overlay", "drawWorldShapeOverlay error", ex);
+        }
+    }
+
+    // Pinta cajas y cruces sobre colonos y enemigos para validar posiciones sin texturas
+    private void drawActorBoxesOverlay() {
+        try {
+            shapeRenderer.setProjectionMatrix(camera.combined);
+            shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
+            // Colonists
+            shapeRenderer.setColor(0.3f, 0.95f, 0.35f, 0.9f);
+            for (int i = 0; i < colonistEntities.size; i++) {
+                Colonist c = colonistMapper.get(colonistEntities.get(i)).colonist;
+                Vector2 p = c.getPosition();
+                if (!isOnScreen(p.x, p.y, 40f)) continue;
+                shapeRenderer.rect(p.x - 16f, p.y - 16f, 32f, 32f);
+                shapeRenderer.line(p.x - 16f, p.y, p.x + 16f, p.y);
+                shapeRenderer.line(p.x, p.y - 16f, p.x, p.y + 16f);
+            }
+            // Enemies
+            shapeRenderer.setColor(0.95f, 0.35f, 0.35f, 0.9f);
+            for (Entity e : enemyEntities) {
+                EnemyComponent ec = enemyMapper.get(e);
+                if (ec == null) continue;
+                Vector2 p = ec.position;
+                if (!isOnScreen(p.x, p.y, 40f)) continue;
+                shapeRenderer.rect(p.x - 16f, p.y - 16f, 32f, 32f);
+                shapeRenderer.line(p.x - 16f, p.y, p.x + 16f, p.y);
+                shapeRenderer.line(p.x, p.y - 16f, p.x, p.y + 16f);
+            }
+            shapeRenderer.end();
+        } catch (Exception ex) {
+            Gdx.app.error("Overlay", "drawActorBoxesOverlay error", ex);
         }
     }
 
@@ -983,7 +1101,7 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
 
     private void drawHud(float delta) {
         StringBuilder builder = new StringBuilder();
-        builder.append("Muisca v0.0.6 | Tab colonos | WASD mover | Shift correr | Q/E hechizos | 1=Tablones | 2=Cama | B/N planos | C grilla | F1 debug | F2 perf | F3 clima\n");
+        builder.append("Muisca v0.0.6 | Tab colonos | WASD mover | Shift correr | Q/E hechizos | 1=Tablones | 2=Cama | B/N planos | C grilla | F1 debug | F2 perf | F3 clima | F4 fallback | F5 tiles shapes | F6 cajas actores | F7 solo shapes\n");
         builder.append("Inventario: ").append(inventory.summarize()).append('\n');
         builder.append("Pedidos carpintería: ");
         boolean first = true;
