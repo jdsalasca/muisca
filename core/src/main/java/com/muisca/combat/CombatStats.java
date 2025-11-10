@@ -107,6 +107,24 @@ public class CombatStats implements Cloneable {
         health = MathUtils.clamp(health - amount, 0f, maxHealth);
     }
 
+    public void setHealth(float value) {
+        health = MathUtils.clamp(value, 0f, maxHealth);
+    }
+
+    public void setStaminaPool(float value) {
+        staminaPool = MathUtils.clamp(value, 0f, maxStamina);
+    }
+
+    public void setFocusPool(float value) {
+        focusPool = MathUtils.clamp(value, 0f, maxFocus);
+    }
+
+    public void setPools(float health, float stamina, float focus) {
+        setHealth(health);
+        setStaminaPool(stamina);
+        setFocusPool(focus);
+    }
+
     public boolean isAlive() {
         return health > 0f;
     }

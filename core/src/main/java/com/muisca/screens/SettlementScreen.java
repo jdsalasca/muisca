@@ -7,6 +7,7 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.ScreenAdapter;
 import com.badlogic.gdx.audio.Music;
+import com.badlogic.gdx.files.FileHandle;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
@@ -21,6 +22,7 @@ import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.Disposable;
 import com.badlogic.gdx.utils.ObjectIntMap;
+import com.badlogic.gdx.utils.ObjectMap;
 import com.muisca.MuiscaGame;
 import com.muisca.colony.Colonist;
 import com.muisca.colony.Colonist.TaskType;
@@ -58,7 +60,9 @@ import com.muisca.inventory.Inventory;
 import com.muisca.jobs.JobBoard;
 import com.muisca.jobs.JobBoard.HarvestSite;
 import com.muisca.reputation.ReputationTracker;
+import com.muisca.save.SaveData;
 import com.muisca.save.SaveManager;
+import com.muisca.save.SaveManager.CombatSnapshot;
 import com.muisca.structures.StructureBlueprint;
 import com.muisca.structures.StructureInstance;
 import com.muisca.structures.StructureLibrary;
@@ -106,6 +110,8 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
     private final ComponentMapper<PlayerCombatComponent> playerCombatMapper = ComponentMapper.getFor(PlayerCombatComponent.class);
     private final ComponentMapper<CombatIdentityComponent> identityMapper = ComponentMapper.getFor(CombatIdentityComponent.class);
     private final ComponentMapper<EnemyComponent> enemyMapper = ComponentMapper.getFor(EnemyComponent.class);
+    private final ComponentMapper<SpellbookComponent> spellbookMapper = ComponentMapper.getFor(SpellbookComponent.class);
+    private final ComponentMapper<TalentComponent> talentMapper = ComponentMapper.getFor(TalentComponent.class);
 
     private final JobBoard jobBoard;
     private final Inventory inventory = new Inventory();
@@ -120,7 +126,7 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
     private final DecisionState decisionState = new DecisionState();
     private final DecisionEngine decisionEngine;
     private final SaveManager saveManager = new SaveManager("slot1");
-    private final DamageTelemetry damageTelemetry = new DamageTelemetry();
+    private final DamageTelemetry damageTelemetry;
 
     private Music ambientTrack;
     private final Vector2 inputDirection = new Vector2();
@@ -140,6 +146,12 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         this.camera = new OrthographicCamera(1280, 720);
         this.font = new BitmapFont();
         this.shapeRenderer = new ShapeRenderer();
+        FileHandle telemetryDir = Gdx.files.local("telemetry");
+        if (!telemetryDir.exists()) {
+            telemetryDir.mkdirs();
+        }
+        FileHandle telemetryFile = telemetryDir.child("damage.log");
+        this.damageTelemetry = new DamageTelemetry(telemetryFile);
 
         this.worldMap = new WorldGenerator(WORLD_WIDTH_TILES, WORLD_HEIGHT_TILES, CHUNK_SIZE, 140_921L).generate();
         this.tileTextures = createTileTextures();
@@ -177,8 +189,9 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
 
         resetEncounter();
 
-        saveManager.read(inventory, structureManager, jobBoard, reputationTracker, decisionState);
+        CombatSnapshot snapshot = saveManager.read(inventory, structureManager, jobBoard, reputationTracker, decisionState);
         craftingQueue.clearJobs();
+        applyCombatSnapshot(snapshot);
 
         ambientTrack = Gdx.audio.newMusic(Gdx.files.internal("audio/proto_theme.wav"));
         ambientTrack.setLooping(true);
@@ -231,10 +244,7 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
     }
 
     private void resetEncounter() {
-        for (Entity enemy : enemyEntities) {
-            engine.removeEntity(enemy);
-        }
-        enemyEntities.clear();
+        clearEnemies();
         spawnEncounter();
     }
 
@@ -249,6 +259,177 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         Entity entity = enemyFactory.createEnemy(archetype, x, y);
         engine.addEntity(entity);
         enemyEntities.add(entity);
+    }
+
+    private CombatSnapshot captureCombatSnapshot() {
+        CombatSnapshot snapshot = new CombatSnapshot();
+        for (Entity entity : colonistEntities) {
+            SaveData.SaveColonist saveColonist = new SaveData.SaveColonist();
+            Colonist colonist = colonistMapper.get(entity).colonist;
+            saveColonist.name = colonist.getName();
+            saveColonist.x = colonist.getPosition().x;
+            saveColonist.y = colonist.getPosition().y;
+            StatsComponent stats = statsMapper.get(entity);
+            if (stats != null) {
+                saveColonist.health = stats.stats.getHealth();
+                saveColonist.stamina = stats.stats.getStaminaPool();
+                saveColonist.focus = stats.stats.getFocusPool();
+                saveColonist.defeated = !stats.stats.isAlive();
+            }
+            PlayerCombatComponent combat = playerCombatMapper.get(entity);
+            if (combat != null) {
+                saveColonist.globalCooldown = combat.globalCooldown;
+            }
+            TalentComponent talents = talentMapper.get(entity);
+            if (talents != null) {
+                for (TalentId talent : talents.talents) {
+                    saveColonist.talents.add(talent.name());
+                }
+            }
+            SpellbookComponent spellbook = spellbookMapper.get(entity);
+            if (spellbook != null) {
+                for (SpellbookComponent.SpellSlot slot : spellbook.slots) {
+                    SaveData.SaveSpellSlot slotSave = new SaveData.SaveSpellSlot();
+                    slotSave.spellId = slot.spell.id;
+                    slotSave.cooldown = slot.cooldownRemaining;
+                    saveColonist.spells.add(slotSave);
+                }
+            }
+            snapshot.colonists.add(saveColonist);
+        }
+        for (Entity entity : enemyEntities) {
+            SaveData.SaveEnemy saveEnemy = new SaveData.SaveEnemy();
+            EnemyComponent enemyComponent = enemyMapper.get(entity);
+            if (enemyComponent != null) {
+                saveEnemy.archetypeId = enemyComponent.archetype.name();
+                saveEnemy.x = enemyComponent.position.x;
+                saveEnemy.y = enemyComponent.position.y;
+            }
+            StatsComponent stats = statsMapper.get(entity);
+            if (stats != null) {
+                saveEnemy.health = stats.stats.getHealth();
+                saveEnemy.stamina = stats.stats.getStaminaPool();
+                saveEnemy.focus = stats.stats.getFocusPool();
+            }
+            SpellbookComponent spellbook = spellbookMapper.get(entity);
+            if (spellbook != null) {
+                for (SpellbookComponent.SpellSlot slot : spellbook.slots) {
+                    SaveData.SaveSpellSlot slotSave = new SaveData.SaveSpellSlot();
+                    slotSave.spellId = slot.spell.id;
+                    slotSave.cooldown = slot.cooldownRemaining;
+                    saveEnemy.spells.add(slotSave);
+                }
+            }
+            snapshot.enemies.add(saveEnemy);
+        }
+        return snapshot;
+    }
+
+    private void applyCombatSnapshot(CombatSnapshot snapshot) {
+        if (snapshot == null) {
+            resetEncounter();
+            return;
+        }
+        boolean hasCombatData = snapshot.colonists.size > 0 || snapshot.enemies.size > 0;
+        if (!hasCombatData) {
+            resetEncounter();
+            return;
+        }
+        ObjectMap<String, Entity> colonistByName = new ObjectMap<>();
+        for (Entity entity : colonistEntities) {
+            Colonist colonist = colonistMapper.get(entity).colonist;
+            colonistByName.put(colonist.getName(), entity);
+        }
+        for (SaveData.SaveColonist saveColonist : snapshot.colonists) {
+            Entity entity = colonistByName.get(saveColonist.name);
+            if (entity == null) {
+                continue;
+            }
+            Colonist colonist = colonistMapper.get(entity).colonist;
+            colonist.getPosition().set(saveColonist.x, saveColonist.y);
+            colonist.clearTask();
+            StatsComponent stats = statsMapper.get(entity);
+            if (stats != null) {
+                stats.stats.setPools(saveColonist.health, saveColonist.stamina, saveColonist.focus);
+                stats.defeated = !stats.stats.isAlive();
+            }
+            PlayerCombatComponent combat = playerCombatMapper.get(entity);
+            if (combat != null) {
+                combat.globalCooldown = saveColonist.globalCooldown;
+            }
+            SpellbookComponent spellbook = spellbookMapper.get(entity);
+            if (spellbook != null && saveColonist.spells.size > 0) {
+                syncSpellCooldowns(spellbook, saveColonist.spells);
+            }
+        }
+        if (snapshot.enemies.size > 0) {
+            rebuildEnemies(snapshot.enemies);
+        } else {
+            clearEnemies();
+        }
+    }
+
+    private void syncSpellCooldowns(SpellbookComponent spellbook, Array<SaveData.SaveSpellSlot> slots) {
+        ObjectMap<String, SpellbookComponent.SpellSlot> byId = new ObjectMap<>();
+        for (SpellbookComponent.SpellSlot slot : spellbook.slots) {
+            if (slot.spell != null) {
+                byId.put(slot.spell.id, slot);
+            }
+        }
+        for (SaveData.SaveSpellSlot slotState : slots) {
+            if (slotState.spellId == null) {
+                continue;
+            }
+            SpellbookComponent.SpellSlot slot = byId.get(slotState.spellId);
+            if (slot == null) {
+                SpellDefinition definition = spellLibrary.get(slotState.spellId);
+                if (definition != null) {
+                    SpellbookComponent.SpellSlot newSlot = new SpellbookComponent.SpellSlot(definition);
+                    newSlot.cooldownRemaining = slotState.cooldown;
+                    spellbook.slots.add(newSlot);
+                }
+                continue;
+            }
+            slot.cooldownRemaining = slotState.cooldown;
+        }
+    }
+
+    private void rebuildEnemies(Array<SaveData.SaveEnemy> savedEnemies) {
+        clearEnemies();
+        for (SaveData.SaveEnemy saveEnemy : savedEnemies) {
+            spawnEnemyFromState(saveEnemy);
+        }
+    }
+
+    private void clearEnemies() {
+        for (Entity enemy : enemyEntities) {
+            engine.removeEntity(enemy);
+        }
+        enemyEntities.clear();
+    }
+
+    private void spawnEnemyFromState(SaveData.SaveEnemy saveEnemy) {
+        if (saveEnemy == null || saveEnemy.archetypeId == null) {
+            return;
+        }
+        EnemyArchetype archetype;
+        try {
+            archetype = EnemyArchetype.valueOf(saveEnemy.archetypeId);
+        } catch (IllegalArgumentException ex) {
+            return;
+        }
+        Entity entity = enemyFactory.createEnemy(archetype, saveEnemy.x, saveEnemy.y);
+        engine.addEntity(entity);
+        enemyEntities.add(entity);
+        StatsComponent stats = statsMapper.get(entity);
+        if (stats != null) {
+            stats.stats.setPools(saveEnemy.health, saveEnemy.stamina, saveEnemy.focus);
+            stats.defeated = !stats.stats.isAlive();
+        }
+        SpellbookComponent spellbook = spellbookMapper.get(entity);
+        if (spellbook != null && saveEnemy.spells.size > 0) {
+            syncSpellCooldowns(spellbook, saveEnemy.spells);
+        }
     }
 
     @Override
@@ -345,18 +526,19 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
 
     private void handleSaveLoadInput() {
         if (Gdx.input.isKeyJustPressed(Input.Keys.F5)) {
-            saveManager.write(inventory, structureManager, jobBoard, reputationTracker, decisionState);
+            saveManager.write(inventory, structureManager, jobBoard, reputationTracker, decisionState,
+                    captureCombatSnapshot());
             showStatus("Partida guardada.");
         }
         if (Gdx.input.isKeyJustPressed(Input.Keys.F9)) {
-            saveManager.read(inventory, structureManager, jobBoard, reputationTracker, decisionState);
+            CombatSnapshot snapshot = saveManager.read(inventory, structureManager, jobBoard, reputationTracker, decisionState);
             craftingQueue.clearJobs();
             for (Entity entity : colonistEntities) {
                 colonistMapper.get(entity).colonist.clearTask();
             }
             decisionVisible = false;
             selectColonist(controlledColonistIndex);
-            resetEncounter();
+            applyCombatSnapshot(snapshot);
             showStatus("Partida cargada.");
         }
     }

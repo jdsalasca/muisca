@@ -35,10 +35,20 @@ Marca cada casilla cuando finalices la tarea (no antes) y enlaza el commit.
 **Sesión 2025-11-11 – Codex (GPT-5)**  
 - Foco: stats/talentos + HUD, IA enemigos, escuelas Ceniza/Juramento, telemetría de daño y pruebas de daño.
 
+**Sesión 2025-11-12 – Codex (GPT-5)**  
+- Persistencia de combate integrada (`SaveManager` snapshots), restaurando HP/STM/FOC y encuentros.  
+- Telemetría escribe CSV (`telemetry/damage.log`). Ajustes menores en HUD y loaders.
+
 **Hand-off Codex – 2025-11-12**
-- Combate prototype integrado; quedan pendientes persistir stats/hechizos en `SaveManager` y balancear números (ver `SettlementScreen` constantes).
-- Ajustar economía de stamina/focus tras playtest prolongado (actualmente altos para garantizar demo).
-- Telemetría sólo imprime a log; evaluar volcado a archivo CSV en herramientas futuras.
+- Balancear costos de stamina/focus y daño del mini-jefe tras playtest (ver constantes en `EnemyArchetype`/spells).
+- Guardado aún no serializa estados aplicados (Burn/Bond); evaluar si es necesario para builds más largas.
+- Considerar exportar agregados de telemetría (DPS promedio por encuentro) para BI ligero.
+
+**Sesión 2025-11-13 – Codex (GPT-5)**  
+- Foco: Documentar/automatizar el flujo para compilar y ejecutar en Windows (README + script PowerShell).
+
+**Hand-off Codex – 2025-11-13**
+- Añadido `tools/run-desktop.ps1` que instala JDK21/25 y lanza Gradle con las rutas correctas; README actualizado con instrucciones Windows rápidas/manuales.
 
 ## 4. Estructura del proyecto
 - `core/`: gameplay (ECS, mundo, colonos, crafting, decisiones, guardado).

@@ -8,6 +8,8 @@ public class SaveData {
     public Array<SaveSite> harvestSites = new Array<>();
     public Array<SaveReputation> reputation = new Array<>();
     public Array<SaveFlag> flags = new Array<>();
+    public Array<SaveColonist> colonists = new Array<>();
+    public Array<SaveEnemy> enemies = new Array<>();
 
     public static class SaveItem {
         public String id;
@@ -34,5 +36,33 @@ public class SaveData {
     public static class SaveFlag {
         public String id;
         public boolean value;
+    }
+
+    public static class SaveColonist {
+        public String name;
+        public float x;
+        public float y;
+        public float health;
+        public float stamina;
+        public float focus;
+        public boolean defeated;
+        public float globalCooldown;
+        public Array<String> talents = new Array<>();
+        public Array<SaveSpellSlot> spells = new Array<>();
+    }
+
+    public static class SaveEnemy {
+        public String archetypeId;
+        public float x;
+        public float y;
+        public float health;
+        public float stamina;
+        public float focus;
+        public Array<SaveSpellSlot> spells = new Array<>();
+    }
+
+    public static class SaveSpellSlot {
+        public String spellId;
+        public float cooldown;
     }
 }

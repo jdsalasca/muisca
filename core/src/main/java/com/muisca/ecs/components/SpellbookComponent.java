@@ -19,6 +19,18 @@ public class SpellbookComponent implements Component {
         return slots.get(index);
     }
 
+    public SpellSlot findBySpellId(String spellId) {
+        if (spellId == null) {
+            return null;
+        }
+        for (SpellSlot slot : slots) {
+            if (slot.spell != null && slot.spell.id.equals(spellId)) {
+                return slot;
+            }
+        }
+        return null;
+    }
+
     public static final class SpellSlot {
         public final SpellDefinition spell;
         public float cooldownRemaining = 0f;

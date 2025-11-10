@@ -6,7 +6,7 @@ Simulador de colonia con tintes RPG inspirado en RimWorld, Dwarf Fortress y la c
 
 | Versión | Fecha | Notas |
 | --- | --- | --- |
-| 0.0.6 | 2025-11-12 | Sistema de combate/magia (stats/talentos Ceniza/Juramento), hechizos data-driven, encuentro de 3 enemigos + mini-jefe y telemetría de daño con HUD ampliado. |
+| 0.0.6 | 2025-11-12 | Sistema de combate/magia (stats/talentos Ceniza/Juramento), hechizos data-driven, encuentro de 3 enemigos + mini-jefe, telemetría a archivo y guardados que preservan stats/cooldowns. |
 | 0.0.5 | 2025-11-11 | Sistema de decisiones/reputación (puente/peaje), flags persistentes, guardado/carga (`F5/F9`) e inventario/estructuras serializados. |
 | 0.0.4 | 2025-11-10 | Inventario compartido + recetas data-driven (madera→tablón→cama), cola de crafting, planos colocables (cama/caja) y HUD de recursos. |
 | 0.0.3 | 2025-11-10 | Colonos migrados a ECS (Ashley), cola de trabajos de recolección con nodos compartidos, overlay de recursos y mejoras HUD/audio. |
@@ -16,16 +16,26 @@ Simulador de colonia con tintes RPG inspirado en RimWorld, Dwarf Fortress y la c
 ## Requisitos
 
 1. **JDK 25** para ejecutar el juego:
-   ```bash
-   ./tools/fetch-openjdk25.sh          # instala en .toolchains/linux-openjdk25
-   export JAVA_HOME="$PWD/.toolchains/linux-openjdk25"
-   export PATH="$JAVA_HOME/bin:$PATH"
-   ```
+   - Linux/macOS:  
+     ```bash
+     ./tools/fetch-openjdk25.sh          # instala en .toolchains/linux-openjdk25
+     export JAVA_HOME="$PWD/.toolchains/linux-openjdk25"
+     export PATH="$JAVA_HOME/bin:$PATH"
+     ```
+   - Windows:  
+     ```powershell
+     tools\fetch-openjdk25.bat           # instala en .toolchains\openjdk25
+     ```
 2. **JDK 21** para el wrapper de Gradle (8.10 aún no corre sobre 25):
-   ```bash
-   ./tools/fetch-openjdk21.sh          # instala en .toolchains/linux-openjdk21
-   ```
-   `gradle.properties` ya apunta a esas rutas, así que Gradle detecta ambos toolchains automáticamente.
+   - Linux/macOS:
+     ```bash
+     ./tools/fetch-openjdk21.sh          # instala en .toolchains/linux-openjdk21
+     ```
+   - Windows:
+     ```powershell
+     tools\fetch-openjdk21.bat           # instala en .toolchains\openjdk21
+     ```
+   `gradle.properties` ya apunta a esas rutas, así que Gradle detecta ambos toolchains automáticamente en Linux/macOS. En Windows los scripts/sketches de abajo se encargan de forzar el `java.home` correcto.
 
 ## Ejecución local
 
@@ -34,9 +44,20 @@ Simulador de colonia con tintes RPG inspirado en RimWorld, Dwarf Fortress y la c
 ./gradlew desktop:run
 ```
 
-**Windows:**
+**Windows (rápido, recomendado):**
+```powershell
+pwsh -ExecutionPolicy Bypass -File tools/run-desktop.ps1
+```
+El helper instala/actualiza ambos JDKs si faltan, exporta `JAVA_HOME` a JDK 25 y pasa `-Dorg.gradle.java.home` con la ruta del JDK 21 antes de lanzar `gradlew.bat desktop:run`. Para otra tarea Gradle:
+```powershell
+pwsh -File tools/run-desktop.ps1 desktop:classes
+```
+
+**Windows (manual):**
 ```cmd
-gradlew.bat desktop:run
+set JAVA_HOME=%CD%\.toolchains\openjdk25
+set PATH=%JAVA_HOME%\bin;%PATH%
+gradlew.bat -Dorg.gradle.java.home=%CD%\.toolchains\openjdk21 desktop:run
 ```
 
 Atajos actuales (v0.0.6):
@@ -69,6 +90,11 @@ muisca/
 4. Conectar audio modular (capas por bioma/evento) y telemetría de rendimiento.
 
 El roadmap completo con versiones 0.0.1–0.0.11 y las métricas asociadas viven en `docs/roadmap.md`. Revisa también `docs/backlog.md` y `docs/gdd.md` para lineamientos de diseño/optimización obligatorios.
+
+## Telemetría
+
+- El overlay de daño (`F1` opcional) ahora se acompaña de un log CSV incremental en `telemetry/damage.log`, útil para balancear builds o comparar DPS. Se recrea automáticamente al ejecutar el juego.
+- Cada fila incluye timestamp, dirección (out/in), fuente, objetivo, daño, tipo y habilidad.
 
 ## Validaciones
 

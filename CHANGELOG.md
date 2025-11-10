@@ -9,9 +9,12 @@ All notable changes to this project will be documented here. The format loosely 
 - Librerías de hechizos Ceniza/Juramento (`assets/data/spells/*.json`), telemetría de daño y HUD ampliado con barras de vida/recursos.
 - Encuentro prototipo con 3 arquetipos enemigos y mini-jefe, más fábricas y texturas dedicadas.
 - Pruebas `DamageCalculatorTest` para validar mitigación/resistencias sobre estados Bond/Burn.
+- Persistencia de combate: colonos y enemigos serializan HP/VIT, cooldowns y encuentros via `SaveManager` + snapshots.
 
 ### Changed
 - `SettlementScreen` ahora carga libro de hechizos, asigna talentos a colonos, habilita lanzamientos con `Q/E` y muestra overlay con DPS.
+- `SaveManager` soporta snapshots de combate y `SettlementScreen` aplica/restaura estas métricas durante `F5/F9`.
+- `DamageTelemetry` escribe CSV incremental (`telemetry/damage.log`) además del overlay en pantalla.
 - README/roadmap/backlog/AGENTS reflejan sprint 0.0.6 y se documentan nuevos atajos/validaciones.
 - Gradle core integra JUnit 5 para las nuevas pruebas automatizadas.
 

@@ -31,7 +31,8 @@ public class SaveManager {
     }
 
     public void write(Inventory inventory, StructureManager structures, JobBoard jobBoard,
-                      ReputationTracker reputation, DecisionState decisionState) {
+                      ReputationTracker reputation, DecisionState decisionState,
+                      CombatSnapshot combatSnapshot) {
         SaveData data = new SaveData();
         ObjectIntMap<String> invSnapshot = inventory.snapshot();
         for (ObjectIntMap.Entry<String> entry : invSnapshot.entries()) {
@@ -74,13 +75,22 @@ public class SaveManager {
             data.flags.add(flag);
         }
 
+        if (combatSnapshot != null) {
+            for (SaveData.SaveColonist colonist : combatSnapshot.colonists) {
+                data.colonists.add(copyColonist(colonist));
+            }
+            for (SaveData.SaveEnemy enemy : combatSnapshot.enemies) {
+                data.enemies.add(copyEnemy(enemy));
+            }
+        }
+
         saveFile.writeString(json.prettyPrint(data), false, "UTF-8");
     }
 
-    public void read(Inventory inventory, StructureManager structures, JobBoard jobBoard,
-                     ReputationTracker reputation, DecisionState decisionState) {
+    public CombatSnapshot read(Inventory inventory, StructureManager structures, JobBoard jobBoard,
+                               ReputationTracker reputation, DecisionState decisionState) {
         if (!saveFile.exists()) {
-            return;
+            return null;
         }
         SaveData data = json.fromJson(SaveData.class, saveFile);
 
@@ -117,5 +127,57 @@ public class SaveManager {
             flags.put(flag.id, flag.value);
         }
         decisionState.restore(flags);
+
+        CombatSnapshot snapshot = new CombatSnapshot();
+        for (SaveData.SaveColonist colonist : data.colonists) {
+            snapshot.colonists.add(copyColonist(colonist));
+        }
+        for (SaveData.SaveEnemy enemy : data.enemies) {
+            snapshot.enemies.add(copyEnemy(enemy));
+        }
+        return snapshot;
+    }
+
+    private SaveData.SaveColonist copyColonist(SaveData.SaveColonist source) {
+        SaveData.SaveColonist copy = new SaveData.SaveColonist();
+        copy.name = source.name;
+        copy.x = source.x;
+        copy.y = source.y;
+        copy.health = source.health;
+        copy.stamina = source.stamina;
+        copy.focus = source.focus;
+        copy.defeated = source.defeated;
+        copy.globalCooldown = source.globalCooldown;
+        copy.talents.addAll(source.talents);
+        for (SaveData.SaveSpellSlot slot : source.spells) {
+            copy.spells.add(copySpellSlot(slot));
+        }
+        return copy;
+    }
+
+    private SaveData.SaveEnemy copyEnemy(SaveData.SaveEnemy source) {
+        SaveData.SaveEnemy copy = new SaveData.SaveEnemy();
+        copy.archetypeId = source.archetypeId;
+        copy.x = source.x;
+        copy.y = source.y;
+        copy.health = source.health;
+        copy.stamina = source.stamina;
+        copy.focus = source.focus;
+        for (SaveData.SaveSpellSlot slot : source.spells) {
+            copy.spells.add(copySpellSlot(slot));
+        }
+        return copy;
+    }
+
+    private SaveData.SaveSpellSlot copySpellSlot(SaveData.SaveSpellSlot source) {
+        SaveData.SaveSpellSlot copy = new SaveData.SaveSpellSlot();
+        copy.spellId = source.spellId;
+        copy.cooldown = source.cooldown;
+        return copy;
+    }
+
+    public static class CombatSnapshot {
+        public final Array<SaveData.SaveColonist> colonists = new Array<>();
+        public final Array<SaveData.SaveEnemy> enemies = new Array<>();
     }
 }

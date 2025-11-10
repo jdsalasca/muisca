@@ -1,6 +1,7 @@
 package com.muisca.combat;
 
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.files.FileHandle;
 import com.badlogic.gdx.utils.Array;
 import java.util.Locale;
 
@@ -16,6 +17,20 @@ public final class DamageTelemetry {
     private float incomingSum = 0f;
     private float windowSeconds = 10f;
     private final StringBuilder scratch = new StringBuilder();
+    private final StringBuilder csvBuilder = new StringBuilder();
+    private FileHandle logFile;
+
+    public DamageTelemetry() {
+        this(null);
+    }
+
+    public DamageTelemetry(FileHandle logFile) {
+        this.logFile = logFile;
+    }
+
+    public void setLogFile(FileHandle logFile) {
+        this.logFile = logFile;
+    }
 
     public void update(float delta) {
         clock += delta;
@@ -37,6 +52,7 @@ public final class DamageTelemetry {
         events.add(event);
         adjustRollingSums(event, 1f);
         Gdx.app.log("Damage", event.toString());
+        appendEventToLog(event);
     }
 
     private void adjustRollingSums(DamageEvent event, float sign) {
@@ -67,6 +83,32 @@ public final class DamageTelemetry {
 
     private String formatDps(float sum) {
         return String.format(Locale.US, "%.1f", sum / windowSeconds);
+    }
+
+    private void appendEventToLog(DamageEvent event) {
+        if (logFile == null) {
+            return;
+        }
+        csvBuilder.setLength(0);
+        csvBuilder.append(String.format(Locale.US, "%.3f", event.timestamp)).append(',');
+        csvBuilder.append(event.outgoing ? "out" : "in").append(',');
+        csvBuilder.append(escapeCsv(event.source)).append(',');
+        csvBuilder.append(escapeCsv(event.target)).append(',');
+        csvBuilder.append(String.format(Locale.US, "%.2f", event.amount)).append(',');
+        csvBuilder.append(event.type).append(',');
+        csvBuilder.append(escapeCsv(event.ability));
+        csvBuilder.append('\n');
+        logFile.writeString(csvBuilder.toString(), true, "UTF-8");
+    }
+
+    private String escapeCsv(String value) {
+        if (value == null) {
+            return "";
+        }
+        if (value.contains(",") || value.contains("\"")) {
+            return "\"" + value.replace("\"", "\"\"") + "\"";
+        }
+        return value;
     }
 
     public static final class DamageEvent {
