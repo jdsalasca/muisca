@@ -5,7 +5,7 @@ Param(
     [switch]$GradleDebug,
     [int]$AutoQuitSeconds = 0,
     [ValidateSet("21","25")]
-    [string]$RuntimeJdk = "25",
+    [string]$RuntimeJdk = "21",
     [string]$LogFile,
     [Parameter(ValueFromRemainingArguments = $true)]
     [string[]]$GradleArgs = @()
@@ -39,8 +39,8 @@ function Ensure-Jdk {
     }
 }
 
-Ensure-Jdk -Name "OpenJDK 21 (Gradle)" -InstallDir $jdk21 -Fetcher (Join-Path $PSScriptRoot "fetch-openjdk21.bat")
-Ensure-Jdk -Name "OpenJDK 25 (runtime)" -InstallDir $jdk25 -Fetcher (Join-Path $PSScriptRoot "fetch-openjdk25.bat")
+Ensure-Jdk -Name "OpenJDK 21 (Gradle/runtime)" -InstallDir $jdk21 -Fetcher (Join-Path $PSScriptRoot "fetch-openjdk21.bat")
+Ensure-Jdk -Name "OpenJDK 25 (opcional)" -InstallDir $jdk25 -Fetcher (Join-Path $PSScriptRoot "fetch-openjdk25.bat")
 
 $Task = if ([string]::IsNullOrWhiteSpace($Task)) { "desktop:run" } else { $Task }
 
@@ -73,7 +73,8 @@ if (-not $LogFile) {
 $null = New-Item -ItemType File -Path $LogFile -Force
 
 $gradleExecutable = Join-Path $repoRoot "gradlew.bat"
-$gradleArguments = @("-Dorg.gradle.java.home={0}" -f $jdk25)
+# Por defecto Gradle corre con JDK 21 para evitar incompatibilidades en LWJGL
+$gradleArguments = @("-Dorg.gradle.java.home={0}" -f $jdk21)
 if ($AutoQuitSeconds -gt 0) {
     $gradleArguments += ("-Dmuisca.autoQuitSeconds={0}" -f $AutoQuitSeconds)
 }
