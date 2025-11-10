@@ -23,6 +23,7 @@ import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.Disposable;
 import com.badlogic.gdx.utils.ObjectIntMap;
 import com.badlogic.gdx.utils.ObjectMap;
+import java.util.Locale;
 import com.muisca.MuiscaGame;
 import com.muisca.colony.Colonist;
 import com.muisca.colony.Colonist.TaskType;
@@ -116,6 +117,7 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
     private final ComponentMapper<EnemyComponent> enemyMapper = ComponentMapper.getFor(EnemyComponent.class);
     private final ComponentMapper<SpellbookComponent> spellbookMapper = ComponentMapper.getFor(SpellbookComponent.class);
     private final ComponentMapper<TalentComponent> talentMapper = ComponentMapper.getFor(TalentComponent.class);
+    private final ComponentMapper<ForceComponent> forceMapper = ComponentMapper.getFor(ForceComponent.class);
 
     private final JobBoard jobBoard;
     private final Inventory inventory = new Inventory();
@@ -143,6 +145,7 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
     private boolean decisionVisible = false;
     private final Array<Entity> enemyEntities = new Array<>();
     private final Texture enemyTexture;
+    private boolean showPerfOverlay = false;
 
     public SettlementScreen(MuiscaGame game) {
         this.game = game;
@@ -397,6 +400,10 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
             if (statusComponent != null) {
                 restoreStatuses(statusComponent, saveColonist.statuses);
             }
+            ForceComponent force = forceMapper.get(entity);
+            if (force != null) {
+                force.velocity.setZero();
+            }
         }
         if (snapshot.enemies.size > 0) {
             rebuildEnemies(snapshot.enemies);
@@ -470,6 +477,10 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         if (statusComponent != null) {
             restoreStatuses(statusComponent, saveEnemy.statuses);
         }
+        ForceComponent force = forceMapper.get(entity);
+        if (force != null) {
+            force.velocity.setZero();
+        }
     }
 
     private void restoreStatuses(StatusComponent statusComponent, Array<SaveData.SaveCombatStatus> statuses) {
@@ -535,6 +546,9 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         }
         if (Gdx.input.isKeyJustPressed(Input.Keys.F1)) {
             showDebug = !showDebug;
+        }
+        if (Gdx.input.isKeyJustPressed(Input.Keys.F2)) {
+            showPerfOverlay = !showPerfOverlay;
         }
         if (Gdx.input.isKeyJustPressed(Input.Keys.TAB)) {
             selectColonist((controlledColonistIndex + 1) % colonistEntities.size);
@@ -674,8 +688,18 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
     }
 
     private void drawWorld() {
-        for (int x = 0; x < worldMap.getWidth(); x++) {
-            for (int y = 0; y < worldMap.getHeight(); y++) {
+        float halfW = camera.viewportWidth / 2f;
+        float halfH = camera.viewportHeight / 2f;
+        float camLeft = camera.position.x - halfW;
+        float camRight = camera.position.x + halfW;
+        float camBottom = camera.position.y - halfH;
+        float camTop = camera.position.y + halfH;
+        int minX = Math.max(0, (int) (camLeft / TILE_SIZE));
+        int maxX = Math.min(worldMap.getWidth() - 1, (int) (camRight / TILE_SIZE) + 1);
+        int minY = Math.max(0, (int) (camBottom / TILE_SIZE));
+        int maxY = Math.min(worldMap.getHeight() - 1, (int) (camTop / TILE_SIZE) + 1);
+        for (int x = minX; x <= maxX; x++) {
+            for (int y = minY; y <= maxY; y++) {
                 Texture texture = tileTextures[worldMap.getTile(x, y).ordinal()];
                 batch.draw(texture, x * TILE_SIZE, y * TILE_SIZE);
             }
@@ -685,6 +709,11 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
     private void drawStructures() {
         for (StructureInstance instance : structureManager.getInstances()) {
             Rectangle rect = instance.getBounds();
+            float centerX = rect.x + rect.width / 2f;
+            float centerY = rect.y + rect.height / 2f;
+            if (!isOnScreen(centerX, centerY, 64f)) {
+                continue;
+            }
             batch.setColor(instance.getBlueprint().getColor());
             batch.draw(colonistTexture, rect.x, rect.y, rect.width, rect.height);
         }
@@ -696,6 +725,9 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
             EnemyComponent enemy = enemyMapper.get(entity);
             if (enemy == null) continue;
             StatsComponent stats = statsMapper.get(entity);
+            if (!isOnScreen(enemy.position.x, enemy.position.y, 48f)) {
+                continue;
+            }
             batch.setColor((stats != null && stats.stats.isAlive()) ? ENEMY_COLOR : ENEMY_DEFEATED_COLOR);
             batch.draw(enemyTexture, enemy.position.x - 16, enemy.position.y - 16);
         }
@@ -785,6 +817,16 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
                     camera.position.x - 620,
                     camera.position.y - 330);
         }
+        if (showPerfOverlay) {
+            builder.setLength(0);
+            int fps = Gdx.graphics.getFramesPerSecond();
+            float javaHeap = Gdx.app.getJavaHeap() / (1024f * 1024f);
+            float nativeHeap = Gdx.app.getNativeHeap() / (1024f * 1024f);
+            builder.append("FPS ").append(fps)
+                    .append(" | Java ").append(String.format(Locale.US, "%.1f MB", javaHeap))
+                    .append(" | Native ").append(String.format(Locale.US, "%.1f MB", nativeHeap));
+            font.draw(batch, builder, camera.position.x + 240, camera.position.y + 340);
+        }
     }
 
     private void drawOverlays() {
@@ -792,25 +834,46 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         if (showChunks) {
             shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
             shapeRenderer.setColor(1f, 1f, 1f, 0.15f);
-            for (int x = 0; x <= worldMap.getWidth(); x += worldMap.getChunkSize()) {
-                float worldX = x * TILE_SIZE;
-                shapeRenderer.line(worldX, 0, worldX, worldMap.getHeight() * TILE_SIZE);
+            float chunkWorld = worldMap.getChunkSize() * TILE_SIZE;
+            float halfW = camera.viewportWidth / 2f;
+            float halfH = camera.viewportHeight / 2f;
+            float camLeft = Math.max(0f, camera.position.x - halfW);
+            float camRight = Math.min(worldMap.getWidth() * TILE_SIZE, camera.position.x + halfW);
+            float camBottom = Math.max(0f, camera.position.y - halfH);
+            float camTop = Math.min(worldMap.getHeight() * TILE_SIZE, camera.position.y + halfH);
+            int minChunkX = Math.max(0, (int) (camLeft / chunkWorld));
+            int maxChunkX = Math.min((int) Math.ceil(camRight / chunkWorld) + 1, worldMap.getWidth() / worldMap.getChunkSize());
+            int minChunkY = Math.max(0, (int) (camBottom / chunkWorld));
+            int maxChunkY = Math.min((int) Math.ceil(camTop / chunkWorld) + 1, worldMap.getHeight() / worldMap.getChunkSize());
+            for (int x = minChunkX; x <= maxChunkX; x++) {
+                float worldX = x * chunkWorld;
+                shapeRenderer.line(worldX, camBottom, worldX, camTop);
             }
-            for (int y = 0; y <= worldMap.getHeight(); y += worldMap.getChunkSize()) {
-                float worldY = y * TILE_SIZE;
-                shapeRenderer.line(0, worldY, worldMap.getWidth() * TILE_SIZE, worldY);
+            for (int y = minChunkY; y <= maxChunkY; y++) {
+                float worldY = y * chunkWorld;
+                shapeRenderer.line(camLeft, worldY, camRight, worldY);
             }
             shapeRenderer.end();
         }
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
         for (StructureInstance instance : structureManager.getInstances()) {
             Rectangle rect = instance.getBounds();
+            float centerX = rect.x + rect.width / 2f;
+            float centerY = rect.y + rect.height / 2f;
+            if (!isOnScreen(centerX, centerY, 64f)) {
+                continue;
+            }
             shapeRenderer.setColor(instance.getBlueprint().getColor());
             shapeRenderer.rect(rect.x, rect.y, rect.width, rect.height);
         }
         shapeRenderer.setColor(1f, 0.85f, 0.3f, 0.9f);
-        shapeRenderer.circle(craftStation.x, craftStation.y, 6f, 12);
+        if (isOnScreen(craftStation.x, craftStation.y, 48f)) {
+            shapeRenderer.circle(craftStation.x, craftStation.y, 6f, 12);
+        }
         for (HarvestSite site : jobBoard.getSites()) {
+            if (!isOnScreen(site.position.x, site.position.y, 48f)) {
+                continue;
+            }
             if (site.harvested) {
                 shapeRenderer.setColor(0.3f, 0.35f, 0.35f, 0.7f);
             } else if (site.reserved) {
@@ -825,6 +888,9 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
             StatsComponent stats = statsMapper.get(colonistEntity);
             if (stats == null) continue;
             Vector2 pos = colonistMapper.get(colonistEntity).colonist.getPosition();
+            if (!isOnScreen(pos.x, pos.y, 40f)) {
+                continue;
+            }
             drawBar(pos.x - 18f, pos.y + 22f, 36f, 3f, stats.stats.getHealthRatio(), HP_BAR_PLAYER);
             drawBar(pos.x - 18f, pos.y + 17f, 36f, 2f, stats.stats.getStaminaRatio(), STAMINA_BAR_COLOR);
         }
@@ -832,10 +898,20 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
             EnemyComponent enemyComponent = enemyMapper.get(enemy);
             StatsComponent stats = statsMapper.get(enemy);
             if (enemyComponent == null || stats == null) continue;
+            if (!isOnScreen(enemyComponent.position.x, enemyComponent.position.y, 40f)) {
+                continue;
+            }
             drawBar(enemyComponent.position.x - 18f, enemyComponent.position.y + 20f, 36f, 3f,
                     stats.stats.getHealthRatio(), stats.stats.isAlive() ? HP_BAR_ENEMY : ENEMY_DEFEATED_COLOR);
         }
         shapeRenderer.end();
+    }
+
+    private boolean isOnScreen(float worldX, float worldY, float margin) {
+        float halfW = camera.viewportWidth / 2f + margin;
+        float halfH = camera.viewportHeight / 2f + margin;
+        return Math.abs(worldX - camera.position.x) <= halfW
+                && Math.abs(worldY - camera.position.y) <= halfH;
     }
 
     private void drawBar(float x, float y, float width, float height, float ratio, Color fillColor) {
@@ -911,13 +987,18 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
 
     private Texture createColonistTexture() {
         Pixmap pixmap = new Pixmap(32, 32, Pixmap.Format.RGBA8888);
-        pixmap.setColor(new Color(0.88f, 0.74f, 0.42f, 1f));
-        pixmap.fillRectangle(8, 10, 16, 20);
-        pixmap.setColor(new Color(0.2f, 0.2f, 0.2f, 1f));
-        pixmap.fillRectangle(10, 6, 12, 6);
-        pixmap.setColor(new Color(0.15f, 0.25f, 0.4f, 1f));
-        pixmap.fillRectangle(11, 24, 4, 8);
-        pixmap.fillRectangle(17, 24, 4, 8);
+        pixmap.setColor(new Color(0.12f, 0.12f, 0.12f, 1f));
+        pixmap.fillCircle(16, 16, 15);
+        pixmap.setColor(new Color(0.9f, 0.78f, 0.55f, 1f));
+        pixmap.fillCircle(16, 18, 11);
+        pixmap.setColor(new Color(0.17f, 0.3f, 0.55f, 1f));
+        pixmap.fillRectangle(11, 6, 10, 10);
+        pixmap.setColor(new Color(0.2f, 0.2f, 0.25f, 1f));
+        pixmap.fillRectangle(12, 4, 8, 4);
+        pixmap.setColor(new Color(0.65f, 0.33f, 0.18f, 1f));
+        pixmap.fillRectangle(14, 22, 4, 8);
+        pixmap.fillRectangle(7, 22, 4, 8);
+        pixmap.fillRectangle(21, 22, 4, 8);
         Texture texture = new Texture(pixmap);
         pixmap.dispose();
         return texture;
@@ -925,10 +1006,15 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
 
     private Texture createEnemyTexture() {
         Pixmap pixmap = new Pixmap(32, 32, Pixmap.Format.RGBA8888);
-        pixmap.setColor(new Color(0.8f, 0.22f, 0.18f, 1f));
+        pixmap.setColor(new Color(0.1f, 0.05f, 0.05f, 1f));
+        pixmap.fillCircle(16, 16, 15);
+        pixmap.setColor(new Color(0.86f, 0.32f, 0.21f, 1f));
         pixmap.fillCircle(16, 16, 12);
-        pixmap.setColor(new Color(0.2f, 0.02f, 0.02f, 1f));
+        pixmap.setColor(new Color(0.3f, 0.05f, 0.05f, 1f));
         pixmap.drawCircle(16, 16, 12);
+        pixmap.setColor(new Color(0.95f, 0.85f, 0.4f, 1f));
+        pixmap.fillCircle(12, 18, 2);
+        pixmap.fillCircle(20, 18, 2);
         Texture texture = new Texture(pixmap);
         pixmap.dispose();
         return texture;

@@ -1,5 +1,6 @@
 package com.muisca.inventory;
 
+import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.ObjectIntMap;
 import com.badlogic.gdx.utils.StringBuilder;
 
@@ -65,13 +66,17 @@ public class Inventory {
             return "(vacío)";
         }
         StringBuilder builder = new StringBuilder();
-        boolean first = true;
+        Array<String> keys = new Array<>(items.size);
         for (ObjectIntMap.Entry<String> entry : items.entries()) {
-            if (!first) {
+            keys.add(entry.key);
+        }
+        keys.sort();
+        for (int i = 0; i < keys.size; i++) {
+            if (i > 0) {
                 builder.append(" | ");
             }
-            builder.append(entry.key).append(": ").append(entry.value);
-            first = false;
+            String key = keys.get(i);
+            builder.append(key).append(": ").append(items.get(key, 0));
         }
         return builder.toString();
     }

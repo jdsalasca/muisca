@@ -46,12 +46,19 @@ Simulador de colonia con tintes RPG inspirado en RimWorld, Dwarf Fortress y la c
 
 **Windows (rápido, recomendado):**
 ```powershell
-pwsh -ExecutionPolicy Bypass -File tools/run-desktop.ps1
+pwsh -ExecutionPolicy Bypass -File tools/run-desktop.ps1          # desktop:run por defecto (abre el slice)
+pwsh -File tools/run-desktop.ps1 desktop:classes                  # sólo compila
+pwsh -File tools/run-desktop.ps1 -Info -LogFile logs/build.log    # agrega flags/log personalizado
 ```
-El helper instala/actualiza ambos JDKs si faltan, exporta `JAVA_HOME` a JDK 25 y pasa `-Dorg.gradle.java.home` con la ruta del JDK 21 antes de lanzar `gradlew.bat desktop:run`. Para otra tarea Gradle:
+El helper `tools/run-desktop.ps1` instala/actualiza ambos JDKs si faltan, exporta `JAVA_HOME` al JDK 25 y pasa `-Dorg.gradle.java.home` con la ruta del JDK 21 antes de invocar `gradlew.bat`. Cada ejecución escribe la salida completa de Gradle (y del juego si corres `desktop:run`) en `logs/run-desktop-<timestamp>.log`. Para ver el stream en vivo desde otra terminal:
 ```powershell
-pwsh -File tools/run-desktop.ps1 desktop:classes
+Get-Content -Wait logs\run-desktop-YYYYMMDD-HHMMSS.log
 ```
+Flags útiles del helper:
+
+- `-Info` / `-GradleDebug`: propagan `--info` / `--debug` a Gradle para seguir el progreso detallado (configuración, tareas, timings).
+- `-LogFile <ruta>`: define manualmente dónde guardar los logs (útil para adjuntar a bugs).
+- Argumentos extra (`desktop:run --scan`) se pasan directo a Gradle.
 
 **Windows (manual):**
 ```cmd

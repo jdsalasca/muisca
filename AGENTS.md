@@ -48,7 +48,7 @@ Marca cada casilla cuando finalices la tarea (no antes) y enlaza el commit.
 - Foco: Documentar/automatizar el flujo para compilar y ejecutar en Windows (README + script PowerShell).
 
 **Hand-off Codex – 2025-11-13**
-- Añadido `tools/run-desktop.ps1` que instala JDK21/25 y lanza Gradle con las rutas correctas; README actualizado con instrucciones Windows rápidas/manuales.
+- Añadido `tools/run-desktop.ps1` que instala JDK21/25, permite flags `-Info/-GradleDebug`, crea logs en `logs/run-desktop-*.log` y lanza Gradle con las rutas correctas; README actualizado con instrucciones Windows rápidas/manuales y tail de logs.
 
 **Sesión 2025-11-14 – Codex (GPT-5)**  
 - Persistencia de efectos de estado (Burn/Bond/Slow/Stagger) y snapshot de fuerzas (knockback) para colonos/enemigos.  
