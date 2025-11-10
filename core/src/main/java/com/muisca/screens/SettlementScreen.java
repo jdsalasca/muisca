@@ -87,6 +87,7 @@ import com.muisca.world.WorldGenerator;
 import com.muisca.world.WorldMap;
 import com.muisca.enemies.EnemyArchetype;
 import com.muisca.enemies.EnemyFactory;
+import com.muisca.telemetry.SystemTelemetry;
 
 /**
  * v0.0.6 slice – colonos ECS + combate/magia y encuentro prototipo.
@@ -143,6 +144,7 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
     private final DecisionEngine decisionEngine;
     private final SaveManager saveManager = new SaveManager("slot1");
     private final DamageTelemetry damageTelemetry;
+    private final SystemTelemetry systemTelemetry;
     private final FloraField floraField;
     private final ElderLibrary elderLibrary;
     private final ElderAura elderAura = new ElderAura();
@@ -182,8 +184,10 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         if (!telemetryDir.exists()) {
             telemetryDir.mkdirs();
         }
-        FileHandle telemetryFile = telemetryDir.child("damage.log");
-        this.damageTelemetry = new DamageTelemetry(telemetryFile);
+        FileHandle damageCsv = telemetryDir.child("damage.csv");
+        this.damageTelemetry = new DamageTelemetry(damageCsv);
+        FileHandle systemsCsv = telemetryDir.child("systems.csv");
+        this.systemTelemetry = new SystemTelemetry(systemsCsv);
 
         this.worldMap = new WorldGenerator(WORLD_WIDTH_TILES, WORLD_HEIGHT_TILES, CHUNK_SIZE, 140_921L).generate();
         this.tileTextures = createTileTextures();
@@ -593,6 +597,9 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         if (environmentRegrowthSystem != null) {
             environmentRegrowthSystem.setWeatherRegrowMultiplier(weatherRegrowMultiplier);
         }
+        if (systemTelemetry != null) {
+            systemTelemetry.logRegenScale(dayIntensity, isRaining, rainIntensity, regenScale, weatherRegrowMultiplier);
+        }
         engine.update(delta);
         damageTelemetry.update(delta);
         applyElderSpirit(delta);
@@ -613,6 +620,9 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         if (Gdx.input.isKeyJustPressed(Input.Keys.F3)) {
             isRaining = !isRaining;
             showStatus(isRaining ? "Clima: lluvia ligera" : "Clima: despejado");
+            if (systemTelemetry != null) {
+                systemTelemetry.logWeatherToggle(isRaining, rainIntensity);
+            }
         }
         if (Gdx.input.isKeyJustPressed(Input.Keys.TAB)) {
             selectColonist((controlledColonistIndex + 1) % colonistEntities.size);

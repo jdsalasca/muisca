@@ -19,6 +19,7 @@ public final class DamageTelemetry {
     private final StringBuilder scratch = new StringBuilder();
     private final StringBuilder csvBuilder = new StringBuilder();
     private FileHandle logFile;
+    private boolean headerWritten = false;
 
     public DamageTelemetry() {
         this(null);
@@ -30,6 +31,7 @@ public final class DamageTelemetry {
 
     public void setLogFile(FileHandle logFile) {
         this.logFile = logFile;
+        this.headerWritten = false;
     }
 
     public void update(float delta) {
@@ -89,6 +91,7 @@ public final class DamageTelemetry {
         if (logFile == null) {
             return;
         }
+        ensureHeader();
         csvBuilder.setLength(0);
         csvBuilder.append(String.format(Locale.US, "%.3f", event.timestamp)).append(',');
         csvBuilder.append(event.outgoing ? "out" : "in").append(',');
@@ -99,6 +102,14 @@ public final class DamageTelemetry {
         csvBuilder.append(escapeCsv(event.ability));
         csvBuilder.append('\n');
         logFile.writeString(csvBuilder.toString(), true, "UTF-8");
+    }
+
+    private void ensureHeader() {
+        if (headerWritten) return;
+        if (logFile != null && (!logFile.exists() || logFile.length() == 0)) {
+            logFile.writeString("timestamp,dir,source,target,amount,type,ability\n", true, "UTF-8");
+        }
+        headerWritten = true;
     }
 
     private String escapeCsv(String value) {
