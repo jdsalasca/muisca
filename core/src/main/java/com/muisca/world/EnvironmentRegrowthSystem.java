@@ -13,6 +13,8 @@ public class EnvironmentRegrowthSystem extends EntitySystem implements JobBoard.
     private final ElderAura elderAura;
     private final float tileSize;
     private float scatterTimer = 0f;
+    // Weather-driven multiplier (e.g., rain accelerates regrowth)
+    private float weatherRegrowMultiplier = 1f; // 0.5 .. 3.0
 
     public EnvironmentRegrowthSystem(FloraField floraField, JobBoard jobBoard, ElderAura elderAura, float tileSize) {
         this.floraField = floraField;
@@ -22,13 +24,21 @@ public class EnvironmentRegrowthSystem extends EntitySystem implements JobBoard.
         jobBoard.addListener(this);
     }
 
+    /**
+     * Adjusts environmental regrowth speed based on weather.
+     * For example, rain can set multiplier in [1.0 .. 1.6] depending on intensity.
+     */
+    public void setWeatherRegrowMultiplier(float multiplier) {
+        this.weatherRegrowMultiplier = MathUtils.clamp(multiplier, 0.5f, 3.0f);
+    }
+
     @Override
     public void update(float deltaTime) {
-        jobBoard.update(deltaTime, elderAura.getFloraBoost());
+        jobBoard.update(deltaTime, elderAura.getFloraBoost() * weatherRegrowMultiplier);
         scatterTimer += deltaTime;
         if (scatterTimer >= 0.2f) {
             scatterTimer = 0f;
-            float amount = 0.02f * elderAura.getFloraBoost();
+            float amount = 0.02f * elderAura.getFloraBoost() * weatherRegrowMultiplier;
             for (int i = 0; i < 4; i++) {
                 floraField.randomRegrow(amount);
             }

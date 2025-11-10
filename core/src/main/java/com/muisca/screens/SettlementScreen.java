@@ -168,6 +168,9 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
     private float rainIntensity = 0.7f; // 0..1
     private final Array<Vector2> rainDrops = new Array<>();
     private float rainSpawnAccumulator = 0f;
+    // References to systems that need environment modifiers
+    private CombatResourceSystem combatResourceSystem;
+    private EnvironmentRegrowthSystem environmentRegrowthSystem;
 
     public SettlementScreen(MuiscaGame game) {
         this.game = game;
@@ -209,14 +212,16 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         engine.addSystem(new InputMovementSystem(worldMap, TILE_SIZE));
         engine.addSystem(new AutonomySystem(worldMap, TILE_SIZE, jobBoard, craftingQueue, inventory));
         engine.addSystem(new TaskSystem(jobBoard, craftingQueue));
-        engine.addSystem(new CombatResourceSystem());
+        combatResourceSystem = new CombatResourceSystem();
+        engine.addSystem(combatResourceSystem);
         engine.addSystem(new PlayerCombatSystem(damageTelemetry));
         engine.addSystem(new EnemyAISystem(damageTelemetry));
         engine.addSystem(new ForceSystem(worldMap, TILE_SIZE));
         engine.addSystem(new StatusSystem(damageTelemetry));
         engine.addSystem(new TownLifeSystem(dayCycle));
         engine.addSystem(new ElderCouncilSystem(elderAura, inventory));
-        engine.addSystem(new EnvironmentRegrowthSystem(floraField, jobBoard, elderAura, TILE_SIZE));
+        environmentRegrowthSystem = new EnvironmentRegrowthSystem(floraField, jobBoard, elderAura, TILE_SIZE);
+        engine.addSystem(environmentRegrowthSystem);
 
         createColonist("Ama", centerX, centerY, TalentId.CENIZA_DISCIPLINE, TalentId.JURAMENTO_WARD);
         createColonist("Quyca", centerX + 96, centerY + 32, TalentId.CENIZA_PYRE);
@@ -576,6 +581,18 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         dayTimer = (dayTimer + delta * 0.04f) % 1f;
         dayCycle.setFraction(dayTimer);
         updateWeather(delta);
+        // Apply environment-driven gameplay modifiers (regen and flora regrowth)
+        float dayIntensity = MathUtils.sin(dayTimer * MathUtils.PI2) * 0.5f + 0.5f; // 0 (midnight)..1 (noon)
+        float rainPenalty = isRaining ? 0.20f * rainIntensity : 0f; // up to -20% regen
+        float nightPenalty = 0.15f * (1f - dayIntensity); // up to -15% regen at midnight
+        float regenScale = MathUtils.clamp(1f - rainPenalty - nightPenalty, 0.6f, 1.0f);
+        if (combatResourceSystem != null) {
+            combatResourceSystem.setRegenScale(regenScale);
+        }
+        float weatherRegrowMultiplier = isRaining ? (1f + 0.6f * rainIntensity) : 1f; // up to +60% in heavy rain
+        if (environmentRegrowthSystem != null) {
+            environmentRegrowthSystem.setWeatherRegrowMultiplier(weatherRegrowMultiplier);
+        }
         engine.update(delta);
         damageTelemetry.update(delta);
         applyElderSpirit(delta);
