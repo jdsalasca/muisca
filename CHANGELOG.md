@@ -39,7 +39,26 @@ All notable changes to this project will be documented here. The format loosely 
 
 ### Notes
 - Verificado en JDK 25: build y run correctos; se mantienen advertencias de LWJGL relacionadas con `sun.misc.Unsafe` (pendiente actualización de backend). Se crean `telemetry/damage.csv` y `telemetry/systems.csv` durante la sesión de juego.
- - Se crea también `telemetry/inventory.csv` al añadir/consumir ítems del inventario durante gameplay.
+- Se crea también `telemetry/inventory.csv` al añadir/consumir ítems del inventario durante gameplay.
+
+## [0.0.6.3] - 2025-11-10
+
+### Added
+- Overlays de diagnóstico gráfico 100% con ShapeRenderer:
+  - F5: "tiles shapes" pinta los tiles visibles con rectángulos translúcidos según flora (valida pipeline sin texturas).
+  - F6: "cajas actores" dibuja cajas y cruces sobre colonos y enemigos para verificar posiciones y culling.
+  - F4 ya existente: fallback overlay con rectángulo y cruz en el centro del mundo.
+- HUD actualizado con atajos F4/F5/F6/F7 para facilitar pruebas.
+- Logs de entorno gráfico en boot: versión GL, disponibilidad GL30, tamaño de backbuffer y modo de render continuo.
+
+### Changed
+- Render seguro: se agregó gating con `try/catch` alrededor de `SpriteBatch.begin()/end()`; al fallar, se desactiva el batch y se registra el error, quedando operativo el modo "solo shapes".
+- DesktopLauncher: backbuffer estable (RGBA 8/8/8/8, depth 16, stencil 0) y emulación GL configurable.
+  - Por defecto usa `GLEmulation.GL30` (OpenGL 3.2), más estricto y estable.
+  - Opción ANGLE (`-Dmuisca.angle=true`) para entornos Windows/Metal con drivers problemáticos.
+
+### Notes
+- Estas medidas endurecen el render frente a pantallas negras y facilitan el diagnóstico inmediato con F5/F6 incluso si el batch o las texturas fallan.
 
 ## [0.0.6] - 2025-11-12
 
