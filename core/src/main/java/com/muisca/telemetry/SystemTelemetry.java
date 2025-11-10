@@ -33,6 +33,11 @@ public final class SystemTelemetry {
         if (logFile == null || headerWritten) return;
         if (!logFile.exists() || logFile.length() == 0) {
             logFile.writeString("timestamp,event,details\n", true, "UTF-8");
+            try {
+                Gdx.app.log("System", "CSV path: " + logFile.file().getAbsolutePath());
+            } catch (Throwable t) {
+                Gdx.app.log("System", "CSV path: " + logFile.path());
+            }
         }
         headerWritten = true;
     }

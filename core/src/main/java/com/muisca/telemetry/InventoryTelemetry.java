@@ -28,6 +28,11 @@ public final class InventoryTelemetry {
         if (logFile == null || headerWritten) return;
         if (!logFile.exists() || logFile.length() == 0) {
             logFile.writeString("timestamp,action,item,amount,context\n", true, "UTF-8");
+            try {
+                Gdx.app.log("Inventory", "CSV path: " + logFile.file().getAbsolutePath());
+            } catch (Throwable t) {
+                Gdx.app.log("Inventory", "CSV path: " + logFile.path());
+            }
         }
         headerWritten = true;
     }

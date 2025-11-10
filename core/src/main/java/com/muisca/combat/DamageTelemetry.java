@@ -108,6 +108,11 @@ public final class DamageTelemetry {
         if (headerWritten) return;
         if (logFile != null && (!logFile.exists() || logFile.length() == 0)) {
             logFile.writeString("timestamp,dir,source,target,amount,type,ability\n", true, "UTF-8");
+            try {
+                Gdx.app.log("Damage", "CSV path: " + logFile.file().getAbsolutePath());
+            } catch (Throwable t) {
+                Gdx.app.log("Damage", "CSV path: " + logFile.path());
+            }
         }
         headerWritten = true;
     }
