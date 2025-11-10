@@ -1,5 +1,8 @@
 package com.muisca.screens;
 
+import com.badlogic.ashley.core.ComponentMapper;
+import com.badlogic.ashley.core.Engine;
+import com.badlogic.ashley.core.Entity;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.ScreenAdapter;
@@ -18,12 +21,21 @@ import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.Disposable;
 import com.muisca.MuiscaGame;
 import com.muisca.colony.Colonist;
+import com.muisca.ecs.components.AutonomyComponent;
+import com.muisca.ecs.components.ColonistComponent;
+import com.muisca.ecs.components.InputControlComponent;
+import com.muisca.ecs.components.TaskComponent;
+import com.muisca.ecs.systems.AutonomySystem;
+import com.muisca.ecs.systems.InputMovementSystem;
+import com.muisca.ecs.systems.TaskSystem;
+import com.muisca.jobs.JobBoard;
+import com.muisca.jobs.JobBoard.HarvestSite;
 import com.muisca.world.TileType;
 import com.muisca.world.WorldGenerator;
 import com.muisca.world.WorldMap;
 
 /**
- * v0.0.2 slice showing procedural biomes, multiple colonists, and ambient music.
+ * v0.0.3 slice showing ECS-powered colonists, harvesting queue, and procedural world.
  */
 public class SettlementScreen extends ScreenAdapter implements Disposable {
 
@@ -41,7 +53,11 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
     private final WorldMap worldMap;
     private final Texture[] tileTextures;
     private final Texture colonistTexture;
-    private final Array<Colonist> colonists;
+    private final Engine engine;
+    private final Array<Entity> colonistEntities = new Array<>();
+    private final ComponentMapper<ColonistComponent> colonistMapper = ComponentMapper.getFor(ColonistComponent.class);
+    private final ComponentMapper<InputControlComponent> inputMapper = ComponentMapper.getFor(InputControlComponent.class);
+    private final JobBoard jobBoard;
     private final Music ambientTrack;
 
     private final Vector2 inputDirection = new Vector2();
@@ -61,7 +77,17 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         this.worldMap = new WorldGenerator(WORLD_WIDTH_TILES, WORLD_HEIGHT_TILES, CHUNK_SIZE, 140_921L).generate();
         this.tileTextures = createTileTextures();
         this.colonistTexture = createColonistTexture();
-        this.colonists = createColonists();
+        this.jobBoard = new JobBoard(worldMap, TILE_SIZE, 14);
+
+        this.engine = new Engine();
+        engine.addSystem(new InputMovementSystem(worldMap, TILE_SIZE));
+        engine.addSystem(new AutonomySystem(worldMap, TILE_SIZE, jobBoard));
+        engine.addSystem(new TaskSystem(jobBoard));
+
+        createColonist("Ama", WORLD_WIDTH_TILES * TILE_SIZE / 2f, WORLD_HEIGHT_TILES * TILE_SIZE / 2f);
+        createColonist("Quyca", WORLD_WIDTH_TILES * TILE_SIZE / 2f + 96, WORLD_HEIGHT_TILES * TILE_SIZE / 2f + 32);
+        createColonist("Suaga", WORLD_WIDTH_TILES * TILE_SIZE / 2f - 80, WORLD_HEIGHT_TILES * TILE_SIZE / 2f - 64);
+        selectColonist(0);
 
         this.ambientTrack = Gdx.audio.newMusic(Gdx.files.internal("audio/proto_theme.wav"));
         ambientTrack.setLooping(true);
@@ -69,9 +95,19 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         ambientTrack.play();
     }
 
+    private void createColonist(String name, float x, float y) {
+        Entity entity = new Entity();
+        entity.add(new ColonistComponent(new Colonist(name, x, y)));
+        entity.add(new InputControlComponent());
+        entity.add(new AutonomyComponent());
+        entity.add(new TaskComponent());
+        engine.addEntity(entity);
+        colonistEntities.add(entity);
+    }
+
     @Override
     public void render(float delta) {
-        update(delta);
+        updateGame(delta);
 
         Color sky = getSkyColor();
         Gdx.gl.glClearColor(sky.r, sky.g, sky.b, 1f);
@@ -84,39 +120,15 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         drawHud(delta);
         batch.end();
 
-        if (showChunks) {
-            drawChunkGrid();
-        }
+        drawOverlays();
     }
 
-    private void update(float delta) {
+    private void updateGame(float delta) {
         handleToggles();
-        Colonist player = colonists.get(controlledColonistIndex);
-
-        inputDirection.setZero();
-        if (Gdx.input.isKeyPressed(Input.Keys.W)) inputDirection.y += 1f;
-        if (Gdx.input.isKeyPressed(Input.Keys.S)) inputDirection.y -= 1f;
-        if (Gdx.input.isKeyPressed(Input.Keys.A)) inputDirection.x -= 1f;
-        if (Gdx.input.isKeyPressed(Input.Keys.D)) inputDirection.x += 1f;
-
-        float speed = Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT) ? 280f : 180f;
-        player.applyInput(inputDirection, delta, speed, worldMap, TILE_SIZE);
-
-        for (int i = 0; i < colonists.size; i++) {
-            if (i == controlledColonistIndex) {
-                continue;
-            }
-            colonists.get(i).updateAutonomy(delta, worldMap, TILE_SIZE);
-        }
-
+        applyInput(delta);
+        engine.update(delta);
+        updateCamera();
         dayTimer = (dayTimer + delta * 0.04f) % 1f;
-
-        float maxX = worldMap.getWidth() * TILE_SIZE;
-        float maxY = worldMap.getHeight() * TILE_SIZE;
-        camera.position.set(player.getPosition(), 0f);
-        camera.position.x = MathUtils.clamp(camera.position.x, camera.viewportWidth / 2f, maxX - camera.viewportWidth / 2f);
-        camera.position.y = MathUtils.clamp(camera.position.y, camera.viewportHeight / 2f, maxY - camera.viewportHeight / 2f);
-        camera.update();
     }
 
     private void handleToggles() {
@@ -127,7 +139,58 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
             showDebug = !showDebug;
         }
         if (Gdx.input.isKeyJustPressed(Input.Keys.TAB)) {
-            controlledColonistIndex = (controlledColonistIndex + 1) % colonists.size;
+            int next = (controlledColonistIndex + 1) % colonistEntities.size;
+            selectColonist(next);
+        }
+    }
+
+    private void applyInput(float delta) {
+        inputDirection.setZero();
+        if (Gdx.input.isKeyPressed(Input.Keys.W)) inputDirection.y += 1f;
+        if (Gdx.input.isKeyPressed(Input.Keys.S)) inputDirection.y -= 1f;
+        if (Gdx.input.isKeyPressed(Input.Keys.A)) inputDirection.x -= 1f;
+        if (Gdx.input.isKeyPressed(Input.Keys.D)) inputDirection.x += 1f;
+
+        float speed = Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT) ? 300f : 190f;
+
+        for (int i = 0; i < colonistEntities.size; i++) {
+            Entity entity = colonistEntities.get(i);
+            InputControlComponent input = inputMapper.get(entity);
+            if (i == controlledColonistIndex) {
+                input.direction.set(inputDirection);
+                input.intendedSpeed = inputDirection.isZero(0.001f) ? 0f : speed;
+            } else {
+                input.direction.setZero();
+                input.intendedSpeed = 0f;
+            }
+        }
+    }
+
+    private void updateCamera() {
+        Entity selected = colonistEntities.get(controlledColonistIndex);
+        Colonist colonist = colonistMapper.get(selected).colonist;
+        float maxX = worldMap.getWidth() * TILE_SIZE;
+        float maxY = worldMap.getHeight() * TILE_SIZE;
+        camera.position.set(colonist.getPosition(), 0f);
+        camera.position.x = MathUtils.clamp(camera.position.x, camera.viewportWidth / 2f, maxX - camera.viewportWidth / 2f);
+        camera.position.y = MathUtils.clamp(camera.position.y, camera.viewportHeight / 2f, maxY - camera.viewportHeight / 2f);
+        camera.update();
+    }
+
+    private void selectColonist(int index) {
+        controlledColonistIndex = MathUtils.clamp(index, 0, colonistEntities.size - 1);
+        for (int i = 0; i < colonistEntities.size; i++) {
+            InputControlComponent input = inputMapper.get(colonistEntities.get(i));
+            input.selected = i == controlledColonistIndex;
+            Colonist colonist = colonistMapper.get(colonistEntities.get(i)).colonist;
+            if (input.selected && colonist.hasActiveTask()) {
+                jobBoard.releaseJob(colonist.getJobId());
+                colonist.clearTask();
+            }
+            if (!input.selected) {
+                input.direction.setZero();
+                input.intendedSpeed = 0f;
+            }
         }
     }
 
@@ -142,13 +205,14 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
     }
 
     private void drawColonists() {
-        for (int i = 0; i < colonists.size; i++) {
-            Colonist colonist = colonists.get(i);
-            boolean selected = i == controlledColonistIndex;
-            if (selected) {
+        for (int i = 0; i < colonistEntities.size; i++) {
+            Entity entity = colonistEntities.get(i);
+            Colonist colonist = colonistMapper.get(entity).colonist;
+            InputControlComponent input = inputMapper.get(entity);
+            if (input.selected) {
                 batch.setColor(Color.WHITE);
             } else {
-                batch.setColor(1f, 1f, 1f, 0.8f);
+                batch.setColor(1f, 1f, 1f, 0.85f);
             }
             batch.draw(colonistTexture, colonist.getPosition().x - 16, colonist.getPosition().y - 16);
         }
@@ -157,44 +221,56 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
 
     private void drawHud(float delta) {
         StringBuilder builder = new StringBuilder();
-        builder.append("Muisca v0.0.2 | WASD mover | Shift correr | Tab cambiar colono | C grilla | F1 debug\n");
-        builder.append("Biomas generados: ").append(TileType.values().length)
-                .append(" | Música ambiental activa | delta ").append(MathUtils.round(delta * 1000)).append(" ms\n");
-        for (int i = 0; i < colonists.size; i++) {
-            Colonist colonist = colonists.get(i);
+        builder.append("Muisca v0.0.3 | Tab colonos | WASD mover | Shift correr | C grilla | F1 debug\n");
+        builder.append("Jobs activos: ").append(jobBoard.getActiveReservations())
+                .append(" | Árboles restantes: ").append(jobBoard.getRemainingSites())
+                .append(" | Música activa | delta ").append(MathUtils.round(delta * 1000)).append(" ms\n");
+
+        for (int i = 0; i < colonistEntities.size; i++) {
+            Colonist colonist = colonistMapper.get(colonistEntities.get(i)).colonist;
             builder.append(i == controlledColonistIndex ? "> " : "  ");
             builder.append(colonist.getName())
-                    .append(" | Hambre ")
-                    .append(MathUtils.round(colonist.getHunger() * 100))
-                    .append("% | Espíritu ")
-                    .append(MathUtils.round(colonist.getSpirit() * 100))
-                    .append("% | Fatiga ")
-                    .append(MathUtils.round(colonist.getFatigue() * 100))
-                    .append("%\n");
+                    .append(" | Hambre ").append(MathUtils.round(colonist.getHunger() * 100)).append("%")
+                    .append(" | Espíritu ").append(MathUtils.round(colonist.getSpirit() * 100)).append("%")
+                    .append(" | Fatiga ").append(MathUtils.round(colonist.getFatigue() * 100)).append("%")
+                    .append(" | Tarea ").append(colonist.getCurrentTask()).append('\n');
         }
         font.draw(batch, builder, camera.position.x - 620, camera.position.y + 340);
-        builder.setLength(0);
         if (showDebug) {
-            builder.append("Cam ")
-                    .append(MathUtils.floor(camera.position.x)).append(",")
-                    .append(MathUtils.floor(camera.position.y))
-                    .append(" | Chunk size ").append(worldMap.getChunkSize())
-                    .append(" | Day timer ").append(MathUtils.round(dayTimer * 100));
-            font.draw(batch, builder, camera.position.x - 620, camera.position.y - 320);
+            font.draw(batch,
+                    "Cam " + MathUtils.floor(camera.position.x) + "," + MathUtils.floor(camera.position.y)
+                            + " | Chunk " + worldMap.getChunkSize()
+                            + " | Day " + MathUtils.round(dayTimer * 100),
+                    camera.position.x - 620,
+                    camera.position.y - 330);
         }
     }
 
-    private void drawChunkGrid() {
+    private void drawOverlays() {
         shapeRenderer.setProjectionMatrix(camera.combined);
-        shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
-        shapeRenderer.setColor(1f, 1f, 1f, 0.1f);
-        for (int x = 0; x <= worldMap.getWidth(); x += worldMap.getChunkSize()) {
-            float worldX = x * TILE_SIZE;
-            shapeRenderer.line(worldX, 0, worldX, worldMap.getHeight() * TILE_SIZE);
+        if (showChunks) {
+            shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
+            shapeRenderer.setColor(1f, 1f, 1f, 0.15f);
+            for (int x = 0; x <= worldMap.getWidth(); x += worldMap.getChunkSize()) {
+                float worldX = x * TILE_SIZE;
+                shapeRenderer.line(worldX, 0, worldX, worldMap.getHeight() * TILE_SIZE);
+            }
+            for (int y = 0; y <= worldMap.getHeight(); y += worldMap.getChunkSize()) {
+                float worldY = y * TILE_SIZE;
+                shapeRenderer.line(0, worldY, worldMap.getWidth() * TILE_SIZE, worldY);
+            }
+            shapeRenderer.end();
         }
-        for (int y = 0; y <= worldMap.getHeight(); y += worldMap.getChunkSize()) {
-            float worldY = y * TILE_SIZE;
-            shapeRenderer.line(0, worldY, worldMap.getWidth() * TILE_SIZE, worldY);
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+        for (HarvestSite site : jobBoard.getSites()) {
+            if (site.harvested) {
+                shapeRenderer.setColor(0.3f, 0.35f, 0.35f, 0.7f);
+            } else if (site.reserved) {
+                shapeRenderer.setColor(0.9f, 0.67f, 0.2f, 0.8f);
+            } else {
+                shapeRenderer.setColor(0.3f, 0.8f, 0.4f, 0.8f);
+            }
+            shapeRenderer.circle(site.position.x, site.position.y, 6f, 12);
         }
         shapeRenderer.end();
     }
@@ -230,16 +306,6 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         Texture texture = new Texture(pixmap);
         pixmap.dispose();
         return texture;
-    }
-
-    private Array<Colonist> createColonists() {
-        Array<Colonist> list = new Array<>();
-        float centerX = WORLD_WIDTH_TILES * TILE_SIZE / 2f;
-        float centerY = WORLD_HEIGHT_TILES * TILE_SIZE / 2f;
-        list.add(new Colonist("Ama", centerX, centerY));
-        list.add(new Colonist("Quyca", centerX + 96, centerY + 32));
-        list.add(new Colonist("Suaga", centerX - 80, centerY - 64));
-        return list;
     }
 
     private Color getSkyColor() {

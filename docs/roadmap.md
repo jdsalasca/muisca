@@ -8,7 +8,7 @@ El objetivo es entregar builds cortas y tocables cada iteración, siempre con fo
 | --- | --- | --- | --- |
 | **0.0.1** | Motor | Proyecto Gradle/libGDX, render básico, HUD placeholder. | Build desktop corre en Java 25. |
 | **0.0.2** | Mundo + audio | Generador 96×96 tiles con 6 biomas, colonos múltiples (estados), música ambiental prototipo. | ≥3 colonos activos, chunk overlay sin caídas. |
-| **0.0.3** | ECS y recursos | Integrar Ashley/Artemis, sistema de colonos como entidades, harvesting básico (árboles ficticios) y job queue mínima. | Tick fijo 30 hz, cola de trabajos sin frame drops. |
+| **0.0.3** | ECS y recursos | Integración Ashley, colonos como entidades, harvesting básico y job queue compartida. | ✅ Engine ECS estable, reservas de recursos visibles. |
 | **0.0.4** | Construcción/crafting | Blueprint de estructuras livianas, recetas JSON (madera→tablón→cama), inventario compartido, UI de crafting. | Guardado/carga de un chunk con menos de 200 KB. |
 | **0.0.5** | Decisiones/reputación | Flags persistentes, cadena “puente o peaje”, facción local que modifica comercio; validador de nodos JSON. | Reputación se conserva tras guardar/cargar; prueba automatizada de flags. |
 | **0.0.6** | Combate/magia | Stats, talentos iniciales, 2 escuelas (Ceniza/Juramento), 3 enemigos IA y mini-jefe. | Encuentro jefe ≤3 min, telemetría de daño. |

@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented here. The format loosely follows [Keep a Changelog](https://keepachangelog.com/) while the versioning scheme will track playable milestones.
 
+# Changelog
+
+All notable changes to this project will be documented here. The format loosely follows [Keep a Changelog](https://keepachangelog.com/) while the versioning scheme will track playable milestones.
+
+## [0.0.3] - 2025-11-10
+
+### Added
+- Integración de Ashley ECS: colonos como entidades con componentes de input, autonomía y tareas.
+- Sistema de cola de trabajos (JobBoard) con nodos de recolección compartidos, overlay visual y HUD extendido.
+- Nuevos sistemas (`InputMovementSystem`, `AutonomySystem`, `TaskSystem`) y componentes para coordinar IA y control manual.
+- Instrumentación del launcher para registrar la versión de Java utilizada al levantar el juego.
+
+### Changed
+- `SettlementScreen` ahora delega todo en la ECS (render, HUD y movimiento).
+- Versionado del proyecto a 0.0.3; README/roadmap/backlog actualizados para reflejar el nuevo alcance.
+
 ## [0.0.2] - 2025-11-09
 
 ### Added
