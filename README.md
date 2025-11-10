@@ -12,21 +12,45 @@ Simulador de colonia con tintes RPG inspirado en RimWorld, Dwarf Fortress y la c
 ## Requisitos
 
 1. **JDK 25** para ejecutar el juego:
+   
+   **Linux/macOS:**
    ```bash
    ./tools/fetch-openjdk25.sh
    export JAVA_HOME="$PWD/.toolchains/openjdk25"
    export PATH="$JAVA_HOME/bin:$PATH"
    ```
+   
+   **Windows:**
+   ```cmd
+   tools\fetch-openjdk25.bat
+   set JAVA_HOME=%CD%\.toolchains\openjdk25
+   set PATH=%JAVA_HOME%\bin;%PATH%
+   ```
+
 2. **JDK 21** para que el wrapper de Gradle funcione (Gradle 8.10 aún no corre sobre 25):
+   
+   **Linux/macOS:**
    ```bash
    ./tools/fetch-openjdk21.sh
    ```
-   `gradle.properties` ya apunta a `.toolchains/openjdk21`, así que no hay que exportar variables extra.
+   
+   **Windows:**
+   ```cmd
+   tools\fetch-openjdk21.bat
+   ```
+   
+   `gradle.properties` ya apunta a `.toolchains/openjdk21`, así que no hay que exportar variables extra (Gradle lo detecta automáticamente).
 
 ## Ejecución local
 
+**Linux/macOS:**
 ```bash
 ./gradlew desktop:run
+```
+
+**Windows:**
+```cmd
+gradlew.bat desktop:run
 ```
 
 Atajos actuales (v0.0.2):
