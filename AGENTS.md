@@ -58,6 +58,10 @@ Marca cada casilla cuando finalices la tarea (no antes) y enlaza el commit.
 - Verificar balance de estados/knockbacks tras cargas prolongadas (tick timers restaurados).  
 - Próximo foco: historias de 0.0.7 (economía/cultivos) una vez terminada la estabilización de combate.
 
+**Sesión 2025-11-15 – Codex (GPT-5)**  
+- Añadidos ancianos (`elders.json`), rutinas sociales (`TownLifeSystem`) y aura que alimenta el ecosistema.  
+- Nuevo campo de flora regenerativa conectado al JobBoard; se implementó el overlay de rendimiento (`F2`) y culling para tiles/overlays.
+
 ## 4. Estructura del proyecto
 - `core/`: gameplay (ECS, mundo, colonos, crafting, decisiones, guardado).
 - `desktop/`: launcher LWJGL3 (`DesktopLauncher`) – imprime la versión de Java utilizada.

@@ -162,6 +162,10 @@ public class Colonist {
         return activeRecipe;
     }
 
+    public void adjustSpirit(float delta) {
+        spirit = MathUtils.clamp(spirit + delta, 0f, 1f);
+    }
+
     private void move(float dx, float dy, WorldMap map, int tileSize) {
         position.add(dx, dy);
         clampToWorld(map, tileSize);

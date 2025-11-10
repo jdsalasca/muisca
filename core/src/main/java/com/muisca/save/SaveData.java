@@ -26,6 +26,8 @@ public class SaveData {
         public float x;
         public float y;
         public boolean harvested;
+        public float regrow;
+        public float delay;
     }
 
     public static class SaveReputation {

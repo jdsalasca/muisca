@@ -25,6 +25,13 @@ import com.badlogic.gdx.utils.ObjectIntMap;
 import com.badlogic.gdx.utils.ObjectMap;
 import java.util.Locale;
 import com.muisca.MuiscaGame;
+import com.muisca.town.ElderAura;
+import com.muisca.town.ElderComponent;
+import com.muisca.town.ElderCouncilSystem;
+import com.muisca.town.ElderLibrary;
+import com.muisca.town.ElderProfile;
+import com.muisca.town.TownLifeComponent;
+import com.muisca.town.TownLifeSystem;
 import com.muisca.colony.Colonist;
 import com.muisca.colony.Colonist.TaskType;
 import com.muisca.crafting.CraftingQueue;
@@ -72,6 +79,9 @@ import com.muisca.structures.StructureBlueprint;
 import com.muisca.structures.StructureInstance;
 import com.muisca.structures.StructureLibrary;
 import com.muisca.structures.StructureManager;
+import com.muisca.world.DayCycle;
+import com.muisca.world.EnvironmentRegrowthSystem;
+import com.muisca.world.FloraField;
 import com.muisca.world.TileType;
 import com.muisca.world.WorldGenerator;
 import com.muisca.world.WorldMap;
@@ -133,6 +143,13 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
     private final DecisionEngine decisionEngine;
     private final SaveManager saveManager = new SaveManager("slot1");
     private final DamageTelemetry damageTelemetry;
+    private final FloraField floraField;
+    private final ElderLibrary elderLibrary;
+    private final ElderAura elderAura = new ElderAura();
+    private final DayCycle dayCycle = new DayCycle();
+    private final Vector2 townPlaza;
+    private int eldersAssigned = 0;
+    private final Color tempColor = new Color();
 
     private Music ambientTrack;
     private final Vector2 inputDirection = new Vector2();
@@ -169,6 +186,9 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         this.worldCenterX = centerX;
         this.worldCenterY = centerY;
         this.craftStation = new Vector2(centerX + 72f, centerY);
+        this.floraField = new FloraField(WORLD_WIDTH_TILES, WORLD_HEIGHT_TILES);
+        this.elderLibrary = ElderLibrary.load(Gdx.files.internal("data/elders.json"));
+        this.townPlaza = new Vector2(centerX + 32f, centerY - 48f);
 
         this.spellLibrary = SpellLibrary.load(Gdx.files.internal("data/spells"));
         this.enemyFactory = new EnemyFactory(spellLibrary);
@@ -189,6 +209,9 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         engine.addSystem(new EnemyAISystem(damageTelemetry));
         engine.addSystem(new ForceSystem(worldMap, TILE_SIZE));
         engine.addSystem(new StatusSystem(damageTelemetry));
+        engine.addSystem(new TownLifeSystem(dayCycle));
+        engine.addSystem(new ElderCouncilSystem(elderAura, inventory));
+        engine.addSystem(new EnvironmentRegrowthSystem(floraField, jobBoard, elderAura, TILE_SIZE));
 
         createColonist("Ama", centerX, centerY, TalentId.CENIZA_DISCIPLINE, TalentId.JURAMENTO_WARD);
         createColonist("Quyca", centerX + 96, centerY + 32, TalentId.CENIZA_PYRE);
@@ -216,6 +239,10 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         entity.add(new TaskComponent());
         entity.add(new CombatIdentityComponent(name, CombatIdentityComponent.Faction.PLAYER));
         entity.add(new ForceComponent());
+        TownLifeComponent townLife = new TownLifeComponent();
+        townLife.homeAnchor.set(x, y);
+        townLife.plazaAnchor.set(townPlaza);
+        entity.add(townLife);
         StatsComponent stats = new StatsComponent(CombatStats.colonistBaseline());
         TalentComponent talentComponent = new TalentComponent();
         if (talents != null) {
@@ -233,6 +260,14 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         entity.add(spellbook);
         entity.add(new PlayerCombatComponent());
         entity.add(new StatusComponent());
+        if (eldersAssigned < 1 && elderLibrary != null) {
+            ElderProfile profile = elderLibrary.getRandom();
+            if (profile != null) {
+                entity.add(new ElderComponent(profile));
+                eldersAssigned++;
+                showStatus("Se unió el sabio " + profile.name);
+            }
+        }
         engine.addEntity(entity);
         colonistEntities.add(entity);
     }
@@ -533,10 +568,12 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         handleSaveLoadInput();
         handleActions();
         applyInput(delta);
+        dayTimer = (dayTimer + delta * 0.04f) % 1f;
+        dayCycle.setFraction(dayTimer);
         engine.update(delta);
         damageTelemetry.update(delta);
+        applyElderSpirit(delta);
         updateCamera();
-        dayTimer = (dayTimer + delta * 0.04f) % 1f;
         statusTimer = Math.max(0f, statusTimer - delta);
     }
 
@@ -654,6 +691,21 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         }
     }
 
+    private void applyElderSpirit(float delta) {
+        float boost = elderAura.getSpiritBoost();
+        if (boost <= 0.001f) {
+            return;
+        }
+        for (Entity entity : colonistEntities) {
+            StatsComponent stats = statsMapper.get(entity);
+            if (stats == null || !stats.stats.isAlive()) {
+                continue;
+            }
+            Colonist colonist = colonistMapper.get(entity).colonist;
+            colonist.adjustSpirit(boost * delta * 0.2f);
+        }
+    }
+
     private void updateCamera() {
         Entity selected = colonistEntities.get(controlledColonistIndex);
         Colonist colonist = colonistMapper.get(selected).colonist;
@@ -701,9 +753,17 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         for (int x = minX; x <= maxX; x++) {
             for (int y = minY; y <= maxY; y++) {
                 Texture texture = tileTextures[worldMap.getTile(x, y).ordinal()];
+                float lush = floraField.sampleGrass(x, y);
+                float bloom = floraField.sampleSprouts(x, y);
+                tempColor.set(0.85f + lush * 0.15f,
+                        0.85f + bloom * 0.1f,
+                        0.9f + lush * 0.05f,
+                        1f);
+                batch.setColor(tempColor);
                 batch.draw(texture, x * TILE_SIZE, y * TILE_SIZE);
             }
         }
+        batch.setColor(Color.WHITE);
     }
 
     private void drawStructures() {
@@ -746,7 +806,7 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
 
     private void drawHud(float delta) {
         StringBuilder builder = new StringBuilder();
-        builder.append("Muisca v0.0.6 | Tab colonos | WASD mover | Shift correr | Q/E hechizos | 1=Tablones | 2=Cama | B/N planos | C grilla | F1 debug\n");
+        builder.append("Muisca v0.0.6 | Tab colonos | WASD mover | Shift correr | Q/E hechizos | 1=Tablones | 2=Cama | B/N planos | C grilla | F1 debug | F2 perf\n");
         builder.append("Inventario: ").append(inventory.summarize()).append('\n');
         builder.append("Pedidos carpintería: ");
         boolean first = true;
@@ -808,6 +868,12 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         builder.setLength(0);
         builder.append(damageTelemetry.buildOverlayText());
         font.draw(batch, builder, camera.position.x - 620, camera.position.y + 210);
+        builder.setLength(0);
+        builder.append("Consejo: Flora x")
+                .append(String.format(Locale.US, "%.2f", elderAura.getFloraBoost()))
+                .append(" | Espíritu +")
+                .append(String.format(Locale.US, "%.2f", elderAura.getSpiritBoost()));
+        font.draw(batch, builder, camera.position.x - 620, camera.position.y + 190);
 
         if (showDebug) {
             font.draw(batch,

@@ -6,7 +6,7 @@ Simulador de colonia con tintes RPG inspirado en RimWorld, Dwarf Fortress y la c
 
 | Versión | Fecha | Notas |
 | --- | --- | --- |
-| 0.0.6 | 2025-11-12 | Sistema de combate/magia (stats/talentos Ceniza/Juramento), hechizos data-driven, encuentro de 3 enemigos + mini-jefe, telemetría a archivo y guardados que preservan stats/cooldowns/estados. |
+| 0.0.6 | 2025-11-12 | Sistema de combate/magia (stats/talentos Ceniza/Juramento), hechizos data-driven, encuentro de 3 enemigos + mini-jefe, telemetría a archivo y guardados que preservan stats/cooldowns/estados, consejeros ancianos y ecosistema regenerativo. |
 | 0.0.5 | 2025-11-11 | Sistema de decisiones/reputación (puente/peaje), flags persistentes, guardado/carga (`F5/F9`) e inventario/estructuras serializados. |
 | 0.0.4 | 2025-11-10 | Inventario compartido + recetas data-driven (madera→tablón→cama), cola de crafting, planos colocables (cama/caja) y HUD de recursos. |
 | 0.0.3 | 2025-11-10 | Colonos migrados a ECS (Ashley), cola de trabajos de recolección con nodos compartidos, overlay de recursos y mejoras HUD/audio. |
@@ -73,14 +73,15 @@ Atajos actuales (v0.0.6):
 - `Shift` aplicar sprint temporal.
 - `Q`/`E` lanzar hechizos primario/secundario (Ceniza/Juramento).
 - `1`/`2` solicitar recetas (tablones/cama); `B`/`N` colocan planos si hay recursos suficientes.
-- `H` abre/cierra decisiones (elige con números), `F5` guarda, `F9` carga, `Tab` alterna colonos, `C` grilla, `F1` debug.
+- `H` abre/cierra decisiones (elige con números), `F5` guarda, `F9` carga, `Tab` alterna colonos, `C` grilla, `F1` debug, `F2` overlay de rendimiento.
 - Música ambiental (`assets/audio/proto_theme.wav`) se reproduce en loop al iniciar.
 
-### Combate v0.0.6
+### Vida de la aldea y combate v0.0.6
 
-- Hechizos de Ceniza aplican quemaduras, empujes (`knockback`) y aturdimientos cortos; Juramento aporta vínculos, ralentizaciones (`SLOW`) y contraataques.
-- Estados activos (Burn/SLOW/ STAGGER/Bond) se preservan al guardar y restaurar.
-- La física ligera introduce fuerzas acumulables; enemigos y colonos pueden deslizarse por el mapa, así que procura mantener a tus magos lejos de los bordes.
+- Elders (`assets/data/elders.json`) se unen a la colonia y aportan doctrinas persistentes (bonos de espíritu/flora + recursos rituales). Consulta el HUD para ver el aura activa del consejo.
+- Los colonos tienen rutinas sociales (`TownLifeSystem`) que los llevan de sus hogares a la plaza central en horas medias para reforzar la fantasía de pueblo vivo.
+- Hechizos Ceniza/Juramento ahora consideran `knockback`, `SLOW` y `STAGGER`, con físicas ligeras (`ForceSystem`) para que cada impacto empuje unidades.
+- El ecosistema (`FloraField`, `EnvironmentRegrowthSystem`) regenera pasto y árboles con el tiempo; las talas registradas en el JobBoard rebrotan según la influencia de los sabios.
 
 ## Estructura
 

@@ -13,6 +13,8 @@ All notable changes to this project will be documented here. The format loosely 
 - Estados (quemado/vínculo) también se serializan/restauran para que los efectos persistentes continúen tras cargar partida.
 - Nuevas físicas ligeras (ForceComponent/ForceSystem) con `knockback`, `SLOW` y `STAGGER`; hechizos y enemigos actualizados para aprovecharlas.
 - Suite de pruebas `StatusComponentTest` para validar multiplicadores de movimiento/stagger.
+- Vida de aldea: biblioteca de sabios (`assets/data/elders.json`), componentes `Elder/TownLife`, sistema de consejo y rutinas sociales.
+- Ecosistema regenerativo (`FloraField`, `EnvironmentRegrowthSystem`) enlazado al JobBoard para que la madera y el pasto vuelvan a crecer con el tiempo.
 
 ### Changed
 - `SettlementScreen` ahora carga libro de hechizos, asigna talentos a colonos, habilita lanzamientos con `Q/E` y muestra overlay con DPS.
@@ -20,6 +22,7 @@ All notable changes to this project will be documented here. The format loosely 
 - `DamageTelemetry` escribe CSV incremental (`telemetry/damage.log`) además del overlay en pantalla.
 - README/roadmap/backlog/AGENTS reflejan sprint 0.0.6 y se documentan nuevos atajos/validaciones.
 - Gradle core integra JUnit 5 para las nuevas pruebas automatizadas.
+- Render y overlays ahora hacen culling por cámara; el HUD incluye toggles `F2` y los colonos muestran el aura del consejo.
 
 ## [0.0.5] - 2025-11-11
 

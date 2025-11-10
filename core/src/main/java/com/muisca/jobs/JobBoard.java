@@ -11,10 +11,18 @@ public class JobBoard {
         public final Vector2 position = new Vector2();
         public boolean reserved = false;
         public boolean harvested = false;
+        public float regrowTimer = 0f;
+        public float regrowDelay = 45f;
     }
 
     private final Array<HarvestSite> sites = new Array<>();
     private final Vector2 temp = new Vector2();
+    private final Array<Listener> listeners = new Array<>();
+
+    public interface Listener {
+        void onSiteHarvested(HarvestSite site);
+        void onSiteRegrown(HarvestSite site);
+    }
 
     public JobBoard(WorldMap map, int tileSize, int count) {
         float centerX = map.getWidth() * tileSize / 2f;
@@ -25,7 +33,14 @@ public class JobBoard {
             float angle = MathUtils.random(0f, MathUtils.PI2);
             site.position.set(centerX + MathUtils.cos(angle) * radius,
                     centerY + MathUtils.sin(angle) * radius);
+            site.regrowDelay = MathUtils.random(35f, 70f);
             sites.add(site);
+        }
+    }
+
+    public void addListener(Listener listener) {
+        if (listener != null && !listeners.contains(listener, true)) {
+            listeners.add(listener);
         }
     }
 
@@ -47,6 +62,8 @@ public class JobBoard {
         HarvestSite site = sites.get(jobId);
         site.harvested = true;
         site.reserved = false;
+        site.regrowTimer = site.regrowDelay;
+        notifyHarvest(site);
     }
 
     public void releaseJob(int jobId) {
@@ -56,6 +73,19 @@ public class JobBoard {
         HarvestSite site = sites.get(jobId);
         if (!site.harvested) {
             site.reserved = false;
+        }
+    }
+
+    public void update(float delta, float regrowMultiplier) {
+        for (HarvestSite site : sites) {
+            if (site.harvested && site.regrowTimer > 0f) {
+                site.regrowTimer -= delta * regrowMultiplier;
+                if (site.regrowTimer <= 0f) {
+                    site.harvested = false;
+                    site.reserved = false;
+                    notifyRegrown(site);
+                }
+            }
         }
     }
 
@@ -96,7 +126,21 @@ public class JobBoard {
             HarvestSite copy = new HarvestSite();
             copy.position.set(site.position);
             copy.harvested = site.harvested;
+            copy.regrowDelay = site.regrowDelay;
+            copy.regrowTimer = site.regrowTimer;
             sites.add(copy);
+        }
+    }
+
+    private void notifyHarvest(HarvestSite site) {
+        for (Listener listener : listeners) {
+            listener.onSiteHarvested(site);
+        }
+    }
+
+    private void notifyRegrown(HarvestSite site) {
+        for (Listener listener : listeners) {
+            listener.onSiteRegrown(site);
         }
     }
 }

@@ -56,6 +56,8 @@ public class SaveManager {
             saveSite.x = site.position.x;
             saveSite.y = site.position.y;
             saveSite.harvested = site.harvested;
+            saveSite.regrow = site.regrowTimer;
+            saveSite.delay = site.regrowDelay;
             data.harvestSites.add(saveSite);
         }
 
@@ -111,6 +113,8 @@ public class SaveManager {
                 HarvestSite newSite = new HarvestSite();
                 newSite.position.set(site.x, site.y);
                 newSite.harvested = site.harvested;
+                newSite.regrowTimer = site.regrow;
+                newSite.regrowDelay = site.delay > 0 ? site.delay : newSite.regrowDelay;
                 restoredSites.add(newSite);
             }
             jobBoard.replaceSites(restoredSites);

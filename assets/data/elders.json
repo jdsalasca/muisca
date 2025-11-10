@@ -1,0 +1,32 @@
+[
+  {
+    "id": "aya_viento",
+    "name": "Aya del Viento",
+    "doctrine": "Renovación",
+    "description": "Custodia los prados y acelera la regeneración de la vegetación.",
+    "floraBonus": 0.5,
+    "spiritBonus": 0.1,
+    "ritualInterval": 40,
+    "ritualResource": "wind_blossom"
+  },
+  {
+    "id": "quynza_bosque",
+    "name": "Quynza del Bosque",
+    "doctrine": "Armonía",
+    "description": "Comparte técnicas de meditación que elevan el espíritu de la comunidad.",
+    "floraBonus": 0.2,
+    "spiritBonus": 0.35,
+    "ritualInterval": 55,
+    "ritualResource": "spirit_thread"
+  },
+  {
+    "id": "suta_ceniza",
+    "name": "Suta Ceniza",
+    "doctrine": "Ceniza Viva",
+    "description": "Recicla madera y devuelve vigor al suelo tras cada quema controlada.",
+    "floraBonus": 0.35,
+    "spiritBonus": 0.05,
+    "ritualInterval": 48,
+    "ritualResource": "ember_salt"
+  }
+]
