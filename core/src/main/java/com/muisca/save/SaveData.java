@@ -49,6 +49,7 @@ public class SaveData {
         public float globalCooldown;
         public Array<String> talents = new Array<>();
         public Array<SaveSpellSlot> spells = new Array<>();
+        public Array<SaveCombatStatus> statuses = new Array<>();
     }
 
     public static class SaveEnemy {
@@ -59,10 +60,20 @@ public class SaveData {
         public float stamina;
         public float focus;
         public Array<SaveSpellSlot> spells = new Array<>();
+        public Array<SaveCombatStatus> statuses = new Array<>();
     }
 
     public static class SaveSpellSlot {
         public String spellId;
         public float cooldown;
+    }
+
+    public static class SaveCombatStatus {
+        public String effect;
+        public float remaining;
+        public float potency;
+        public float tickTimer;
+        public float tickInterval;
+        public String source;
     }
 }

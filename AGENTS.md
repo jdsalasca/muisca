@@ -50,6 +50,14 @@ Marca cada casilla cuando finalices la tarea (no antes) y enlaza el commit.
 **Hand-off Codex – 2025-11-13**
 - Añadido `tools/run-desktop.ps1` que instala JDK21/25 y lanza Gradle con las rutas correctas; README actualizado con instrucciones Windows rápidas/manuales.
 
+**Sesión 2025-11-14 – Codex (GPT-5)**  
+- Persistencia de efectos de estado (Burn/Bond) tanto para colonos como enemigos; guardados retoman cooldowns y estados activos.  
+- Roadmap/backlog revisados (0.0.6 entregado) y README/CHANGELOG actualizados para reflejar el alcance real.
+
+**Hand-off Codex – 2025-11-14**
+- Verificar balance de estados reaplicados tras cargas prolongadas (tick timers restaurados).  
+- Próximo foco: historias de 0.0.7 (economía/cultivos) una vez terminada la estabilización de combate.
+
 ## 4. Estructura del proyecto
 - `core/`: gameplay (ECS, mundo, colonos, crafting, decisiones, guardado).
 - `desktop/`: launcher LWJGL3 (`DesktopLauncher`) – imprime la versión de Java utilizada.

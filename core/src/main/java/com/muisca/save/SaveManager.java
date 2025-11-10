@@ -152,6 +152,9 @@ public class SaveManager {
         for (SaveData.SaveSpellSlot slot : source.spells) {
             copy.spells.add(copySpellSlot(slot));
         }
+        for (SaveData.SaveCombatStatus status : source.statuses) {
+            copy.statuses.add(copyStatus(status));
+        }
         return copy;
     }
 
@@ -166,6 +169,9 @@ public class SaveManager {
         for (SaveData.SaveSpellSlot slot : source.spells) {
             copy.spells.add(copySpellSlot(slot));
         }
+        for (SaveData.SaveCombatStatus status : source.statuses) {
+            copy.statuses.add(copyStatus(status));
+        }
         return copy;
     }
 
@@ -173,6 +179,17 @@ public class SaveManager {
         SaveData.SaveSpellSlot copy = new SaveData.SaveSpellSlot();
         copy.spellId = source.spellId;
         copy.cooldown = source.cooldown;
+        return copy;
+    }
+
+    private SaveData.SaveCombatStatus copyStatus(SaveData.SaveCombatStatus source) {
+        SaveData.SaveCombatStatus copy = new SaveData.SaveCombatStatus();
+        copy.effect = source.effect;
+        copy.remaining = source.remaining;
+        copy.potency = source.potency;
+        copy.tickTimer = source.tickTimer;
+        copy.tickInterval = source.tickInterval;
+        copy.source = source.source;
         return copy;
     }
 

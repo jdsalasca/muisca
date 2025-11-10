@@ -10,6 +10,7 @@ All notable changes to this project will be documented here. The format loosely 
 - Encuentro prototipo con 3 arquetipos enemigos y mini-jefe, más fábricas y texturas dedicadas.
 - Pruebas `DamageCalculatorTest` para validar mitigación/resistencias sobre estados Bond/Burn.
 - Persistencia de combate: colonos y enemigos serializan HP/VIT, cooldowns y encuentros via `SaveManager` + snapshots.
+- Estados (quemado/vínculo) también se serializan/restauran para que los efectos persistentes continúen tras cargar partida.
 
 ### Changed
 - `SettlementScreen` ahora carga libro de hechizos, asigna talentos a colonos, habilita lanzamientos con `Q/E` y muestra overlay con DPS.

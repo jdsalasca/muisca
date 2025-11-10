@@ -11,7 +11,7 @@ El objetivo es entregar builds cortas y tocables cada iteración, siempre con fo
 | **0.0.3** | ECS y recursos | Integración Ashley, colonos como entidades, harvesting básico y job queue compartida. | ✅ Engine ECS estable, reservas de recursos visibles. |
 | **0.0.4** | Construcción/crafting | Blueprint de estructuras livianas, recetas JSON (madera→tablón→cama), inventario compartido, UI de crafting. | ✅ Inventario global + planos colocables funcionando in-game. |
 | **0.0.5** | Decisiones/reputación | Flags persistentes, cadena “puente o peaje”, facción local que modifica comercio; validador de nodos JSON. | ✅ Reputación y decisiones guardadas/cargadas; UI in-game. |
-| **0.0.6** | Combate/magia | Stats, talentos iniciales, 2 escuelas (Ceniza/Juramento), 3 enemigos IA y mini-jefe. | Encuentro jefe ≤3 min, telemetría de daño. |
+| **0.0.6** | Combate/magia | Stats, talentos iniciales, 2 escuelas (Ceniza/Juramento), 3 enemigos IA y mini-jefe. | ✅ Encuentro jefe ≤3 min, telemetría + guardados persistentes. |
 | **0.0.7** | Economía/agricultura | Cultivos (3 plantas), estaciones ligeras, comercio con reputación + escasez, segundo bioma jugable. | Colonia se sostiene 10 min solo con cultivos. |
 | **0.0.8** | Eventos + audio reactivo | Eventos (migrante, ataque menor, tormenta), capas de música/SFX por bioma/clima, progreso de rasgos. | Eventos se disparan cada 6–10 min, sistema de música sin cortes audibles. |
 | **0.0.9** | Facciones/guerras | 3 facciones con tensiones, mapa estratégico, asaltos/tributos/treguas, diplomacia UI. | Simulación mínima 20 min sin GC spikes >10 ms. |

@@ -37,6 +37,8 @@ import com.muisca.combat.CombatStats;
 import com.muisca.combat.DamageTelemetry;
 import com.muisca.combat.SpellDefinition;
 import com.muisca.combat.SpellLibrary;
+import com.muisca.combat.StatusEffect;
+import com.muisca.combat.StatusEffectInstance;
 import com.muisca.combat.TalentId;
 import com.muisca.ecs.components.AutonomyComponent;
 import com.muisca.ecs.components.CombatIdentityComponent;
@@ -295,6 +297,19 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
                     saveColonist.spells.add(slotSave);
                 }
             }
+            StatusComponent statusComponent = statusMapper.get(entity);
+            if (statusComponent != null) {
+                for (StatusEffectInstance instance : statusComponent.statuses) {
+                    SaveData.SaveCombatStatus saveStatus = new SaveData.SaveCombatStatus();
+                    saveStatus.effect = instance.effect.name();
+                    saveStatus.remaining = instance.remaining;
+                    saveStatus.potency = instance.potency;
+                    saveStatus.tickInterval = instance.tickInterval;
+                    saveStatus.tickTimer = instance.tickTimer;
+                    saveStatus.source = instance.sourceName;
+                    saveColonist.statuses.add(saveStatus);
+                }
+            }
             snapshot.colonists.add(saveColonist);
         }
         for (Entity entity : enemyEntities) {
@@ -318,6 +333,19 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
                     slotSave.spellId = slot.spell.id;
                     slotSave.cooldown = slot.cooldownRemaining;
                     saveEnemy.spells.add(slotSave);
+                }
+            }
+            StatusComponent statusComponent = statusMapper.get(entity);
+            if (statusComponent != null) {
+                for (StatusEffectInstance instance : statusComponent.statuses) {
+                    SaveData.SaveCombatStatus saveStatus = new SaveData.SaveCombatStatus();
+                    saveStatus.effect = instance.effect.name();
+                    saveStatus.remaining = instance.remaining;
+                    saveStatus.potency = instance.potency;
+                    saveStatus.tickInterval = instance.tickInterval;
+                    saveStatus.tickTimer = instance.tickTimer;
+                    saveStatus.source = instance.sourceName;
+                    saveEnemy.statuses.add(saveStatus);
                 }
             }
             snapshot.enemies.add(saveEnemy);
@@ -360,6 +388,10 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
             SpellbookComponent spellbook = spellbookMapper.get(entity);
             if (spellbook != null && saveColonist.spells.size > 0) {
                 syncSpellCooldowns(spellbook, saveColonist.spells);
+            }
+            StatusComponent statusComponent = statusMapper.get(entity);
+            if (statusComponent != null) {
+                restoreStatuses(statusComponent, saveColonist.statuses);
             }
         }
         if (snapshot.enemies.size > 0) {
@@ -429,6 +461,36 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         SpellbookComponent spellbook = spellbookMapper.get(entity);
         if (spellbook != null && saveEnemy.spells.size > 0) {
             syncSpellCooldowns(spellbook, saveEnemy.spells);
+        }
+        StatusComponent statusComponent = statusMapper.get(entity);
+        if (statusComponent != null) {
+            restoreStatuses(statusComponent, saveEnemy.statuses);
+        }
+    }
+
+    private void restoreStatuses(StatusComponent statusComponent, Array<SaveData.SaveCombatStatus> statuses) {
+        statusComponent.statuses.clear();
+        if (statuses == null || statuses.size == 0) {
+            return;
+        }
+        for (SaveData.SaveCombatStatus saveStatus : statuses) {
+            if (saveStatus.effect == null) {
+                continue;
+            }
+            StatusEffect effect;
+            try {
+                effect = StatusEffect.valueOf(saveStatus.effect);
+            } catch (IllegalArgumentException ex) {
+                continue;
+            }
+            StatusEffectInstance instance = new StatusEffectInstance(effect,
+                    Math.max(0f, saveStatus.remaining),
+                    saveStatus.potency,
+                    saveStatus.tickInterval,
+                    saveStatus.source);
+            instance.remaining = saveStatus.remaining;
+            instance.tickTimer = saveStatus.tickTimer;
+            statusComponent.statuses.add(instance);
         }
     }
 
