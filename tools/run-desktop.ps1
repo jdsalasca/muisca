@@ -73,7 +73,7 @@ if (-not $LogFile) {
 $null = New-Item -ItemType File -Path $LogFile -Force
 
 $gradleExecutable = Join-Path $repoRoot "gradlew.bat"
-$gradleArguments = @("-Dorg.gradle.java.home={0}" -f $jdk21)
+$gradleArguments = @("-Dorg.gradle.java.home={0}" -f $jdk25)
 if ($AutoQuitSeconds -gt 0) {
     $gradleArguments += ("-Dmuisca.autoQuitSeconds={0}" -f $AutoQuitSeconds)
 }
