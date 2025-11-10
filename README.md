@@ -51,8 +51,9 @@ pwsh -ExecutionPolicy Bypass -File tools/run-desktop.ps1          # desktop:run 
 pwsh -File tools/run-desktop.ps1 desktop:classes                  # sólo compila
 pwsh -File tools/run-desktop.ps1 -GradleInfo -LogFile logs/build.log    # agrega flags/log personalizado
 pwsh -File tools/run-desktop.ps1 -GradleInfo -AutoQuitSeconds 8         # corre desktop:run y se cierra tras 8s (CI/headless)
+pwsh -File tools/run-desktop.ps1 -RuntimeJdk 21 -GradleInfo             # opcional: ejecutar con runtime JDK 21 para comparar y reducir warnings LWJGL
 ```
-El helper `tools/run-desktop.ps1` instala/actualiza ambos JDKs si faltan, exporta `JAVA_HOME` al JDK 25 y pasa `-Dorg.gradle.java.home` con la ruta del JDK 21 antes de invocar `gradlew.bat`. Cada ejecución escribe la salida completa de Gradle (y del juego si corres `desktop:run`) en `logs/run-desktop-<timestamp>.log`. Para ver el stream en vivo desde otra terminal:
+El helper `tools/run-desktop.ps1` instala/actualiza ambos JDKs si faltan, exporta `JAVA_HOME` al JDK 25 (por defecto, configurable con `-RuntimeJdk 21|25`) y pasa `-Dorg.gradle.java.home` con la ruta del JDK 21 antes de invocar `gradlew.bat`. Cada ejecución escribe la salida completa de Gradle (y del juego si corres `desktop:run`) en `logs/run-desktop-<timestamp>.log`. Para ver el stream en vivo desde otra terminal:
 ```powershell
 Get-Content -Wait logs\run-desktop-YYYYMMDD-HHMMSS.log
 ```
@@ -61,6 +62,7 @@ Flags útiles del helper:
 - `-GradleInfo` / `-GradleDebug`: propagan `--info` / `--debug` a Gradle para seguir el progreso detallado (configuración, tareas, timings).
 - `-LogFile <ruta>`: define manualmente dónde guardar los logs (útil para adjuntar a bugs).
 - Argumentos extra (`desktop:run --scan`) se pasan directo a Gradle. Añade `-AutoQuitSeconds <seg>` (o directamente `-Dmuisca.autoQuitSeconds=<seg>`) para que el slice se cierre automáticamente cuando corres `desktop:run` sin GUI.
+- `-RuntimeJdk 21|25`: selecciona el JDK de runtime; por defecto usa 25 para un juego más actualizado.
 
 **Windows (manual):**
 ```cmd
@@ -119,3 +121,7 @@ Pruebas unitarias actuales (cálculos de daño/resistencias):
 ```bash
 ./gradlew core:test
 ```
+## Soporte Java 25
+
+- El objetivo del proyecto es usar **Java 25** como base en runtime. La tarea `desktop:run` está configurada con `jvmArgs --enable-native-access=ALL-UNNAMED` para adelantarnos a restricciones futuras de métodos nativos.
+- Si detectas warnings de LWJGL (JNI y `sun.misc.Unsafe`), puedes comparar el comportamiento con `-RuntimeJdk 21`. El build sigue compilando con toolchain 25 y Gradle corre sobre 21 para máxima estabilidad.

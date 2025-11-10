@@ -14,6 +14,7 @@ All notable changes to this project will be documented here. The format loosely 
 - Passability en tiles: `TileType` incorpora `isPassable()` y `isWater()`; el bioma `LAGUNA_SAGRADA` se marca como no transitable (agua).
 - Generación de mundo mejorada: FBM más suave y sesgo radial de elevación que favorece tierra cerca del centro para mejorar el área de spawn.
 - Sprint detecta ambas teclas Shift (izquierda y derecha) para mayor compatibilidad de teclado.
+ - Soporte Java 25: `desktop:run` añade `--enable-native-access=ALL-UNNAMED` y el helper `run-desktop.ps1` permite seleccionar el runtime con `-RuntimeJdk 21|25` (por defecto 25).
 
 ### Fixed
 - Se evita caminar sobre agua al validar transitabilidad del tile antes de aplicar movimiento.

@@ -4,6 +4,8 @@ Param(
     [switch]$GradleInfo,
     [switch]$GradleDebug,
     [int]$AutoQuitSeconds = 0,
+    [ValidateSet("21","25")]
+    [string]$RuntimeJdk = "25",
     [string]$LogFile,
     [Parameter(ValueFromRemainingArguments = $true)]
     [string[]]$GradleArgs = @()
@@ -43,8 +45,13 @@ Ensure-Jdk -Name "OpenJDK 25 (runtime)" -InstallDir $jdk25 -Fetcher (Join-Path $
 $Task = if ([string]::IsNullOrWhiteSpace($Task)) { "desktop:run" } else { $Task }
 
 $prevJavaHome = $env:JAVA_HOME
-$env:JAVA_HOME = $jdk25
-$env:PATH = "{0};{1}" -f (Join-Path $jdk25 "bin"), $env:PATH
+if ($RuntimeJdk -eq "21") {
+    $env:JAVA_HOME = $jdk21
+    $env:PATH = "{0};{1}" -f (Join-Path $jdk21 "bin"), $env:PATH
+} else {
+    $env:JAVA_HOME = $jdk25
+    $env:PATH = "{0};{1}" -f (Join-Path $jdk25 "bin"), $env:PATH
+}
 
 $gradleSwitches = @()
 if ($GradleInfo) { $gradleSwitches += "--info" }
@@ -83,7 +90,7 @@ function Format-Arg {
 
 $commandPreview = "$gradleExecutable " + (($gradleArguments | ForEach-Object { Format-Arg $_ }) -join ' ')
 
-Write-Host "[muisca] JAVA_HOME => $env:JAVA_HOME"
+Write-Host "[muisca] JAVA_HOME (runtime) => $env:JAVA_HOME"
 Write-Host "[muisca] Log file => $LogFile"
 Write-Host "[muisca] Running: $commandPreview"
 

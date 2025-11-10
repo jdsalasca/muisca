@@ -16,6 +16,10 @@ application {
 tasks.named("run", JavaExec).configure {
     workingDir = rootProject.file("assets")
     standardInput = System.in
+    // Java 25 runtime support: enable native access to avoid future blocking of restricted methods
+    // See JDK 25 warnings in LWJGL about restricted methods becoming blocked without native access.
+    // This flag is harmless on 25 and prepares us for future releases.
+    jvmArgs("--enable-native-access=ALL-UNNAMED")
     String autoQuit = System.getProperty("muisca.autoQuitSeconds")
     if (autoQuit != null && !autoQuit.isBlank()) {
         systemProperty("muisca.autoQuitSeconds", autoQuit)

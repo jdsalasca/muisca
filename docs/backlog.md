@@ -19,3 +19,10 @@
 3. **Magia Ceniza/Juramento**: proyectiles + escudos con estados (quemado/vínculo) y costos de recursos.
 4. **Telemetría de daño**: registrar DPS recibido/emitido para balance; overlay debug.
 5. **Pruebas**: casos unitarios para cálculos de daño/resistencias.
+
+## Parche 0.0.6.1 y soporte Java 25
+- Overlay día/noche y clima (lluvia `F3`) con HUD actualizado.
+- Movimiento con colisiones por eje y passability de agua (`TileType.isPassable/isWater`).
+- Generador de mundo con FBM suavizado y sesgo radial para spawn central.
+- Script `run-desktop.ps1`: `-GradleInfo` (evita ambigüedad con PowerShell) y `-RuntimeJdk 21|25` para seleccionar runtime.
+- Desktop `run` agrega `jvmArgs --enable-native-access=ALL-UNNAMED` para preparar compatibilidad con Java 25.
