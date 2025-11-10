@@ -6,6 +6,18 @@ All notable changes to this project will be documented here. The format loosely 
 
 All notable changes to this project will be documented here. The format loosely follows [Keep a Changelog](https://keepachangelog.com/) while the versioning scheme will track playable milestones.
 
+## [0.0.5] - 2025-11-11
+
+### Added
+- Sistema de decisiones/reputación (`DecisionGraph`, `DecisionEngine`, JSON `bridge_toll`) con UI en juego (`H` para abrir, números para elegir).
+- Seguimiento de reputaciones por facción y flags persistentes; efectos sobre recompensas e inventario.
+- Guardado/carga (`SaveManager`, `F5/F9`) que serializa inventario, estructuras, sitios de tala, reputaciones y flags.
+ 
+### Changed
+- HUD muestra reputación y se expandió el overlay cuando hay decisiones activas.
+- `SettlementScreen` integra el nuevo flujo (toggle decisiones, guardar/cargar) y limpia tareas al restaurar.
+- Toolchains siguen apuntando a `.toolchains/linux-openjdk*`; instrucciones actualizadas en README.
+
 ## [0.0.4] - 2025-11-10
 
 ### Added

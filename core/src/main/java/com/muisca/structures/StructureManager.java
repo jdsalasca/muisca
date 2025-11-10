@@ -19,10 +19,6 @@ public class StructureManager {
         return instances;
     }
 
-    public StructureBlueprint getBlueprint(String id) {
-        return library.get(id);
-    }
-
     public boolean place(String blueprintId, Vector2 position) {
         StructureBlueprint blueprint = library.get(blueprintId);
         if (blueprint == null) {
@@ -33,5 +29,16 @@ public class StructureManager {
         }
         instances.add(new StructureInstance(blueprint, position.x, position.y));
         return true;
+    }
+
+    public void addRestored(String blueprintId, Vector2 position) {
+        StructureBlueprint blueprint = library.get(blueprintId);
+        if (blueprint != null) {
+            instances.add(new StructureInstance(blueprint, position.x, position.y));
+        }
+    }
+
+    public StructureBlueprint getBlueprint(String id) {
+        return library.get(id);
     }
 }

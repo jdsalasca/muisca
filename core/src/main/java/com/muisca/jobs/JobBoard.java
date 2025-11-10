@@ -89,4 +89,14 @@ public class JobBoard {
     public Array<HarvestSite> getSites() {
         return sites;
     }
+
+    public void replaceSites(Array<HarvestSite> newSites) {
+        sites.clear();
+        for (HarvestSite site : newSites) {
+            HarvestSite copy = new HarvestSite();
+            copy.position.set(site.position);
+            copy.harvested = site.harvested;
+            sites.add(copy);
+        }
+    }
 }

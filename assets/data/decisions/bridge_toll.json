@@ -1,0 +1,40 @@
+{
+  "nodes": [
+    {
+      "id": "bridge_intro",
+      "title": "El puente de Quynza",
+      "description": "El viejo puente sobre el cañón controla la ruta comercial. Los Vigías del Velo piden un peaje, pero la Liga del Juramento ofrece pagar la reparación si aseguras tránsito libre.",
+      "options": [
+        {
+          "label": "Reparar el puente a tu costo",
+          "inventoryCost": { "plank": 6 },
+          "reputationDelta": { "liga": 8, "vigias": -3 },
+          "inventoryReward": { "raw_wood": 2 },
+          "setFlag": { "bridge_repaired": true },
+          "next": "bridge_outcome"
+        },
+        {
+          "label": "Cobrar peaje junto a los Vigías",
+          "reputationMin": { "vigias": -10 },
+          "reputationDelta": { "vigias": 6, "liga": -6 },
+          "inventoryReward": { "coin": 4 },
+          "setFlag": { "bridge_toll": true },
+          "next": "bridge_outcome"
+        },
+        {
+          "label": "Ignorar el asunto",
+          "reputationDelta": { "liga": -1 },
+          "setFlag": { "bridge_ignored": true },
+          "next": "bridge_outcome"
+        }
+      ]
+    },
+    {
+      "id": "bridge_outcome",
+      "title": "Consecuencias de Quynza",
+      "description": "Tu decisión ya se rumora en los mercados. Nuevos eventos se desbloquearán más adelante.",
+      "options": []
+    }
+  ],
+  "entryNode": "bridge_intro"
+}

@@ -5,7 +5,7 @@
 | E-001 | 0.0.2 | Mundo procedural + audio | Generar chunks 96×96, biomas y música base. | ✅ |
 | E-002 | 0.0.3 | Colonos & scheduler | Colonos como entidades ECS, necesidades y cola global de trabajos. | ✅ |
 | E-003 | 0.0.4 | Construcción & crafting | Estaciones, recetas JSON, inventario compartido y UI. | ✅ |
-| E-004 | 0.0.5 | Decisiones & reputación | Flags persistentes, nodos YAML/JSON con condiciones y efectos. | 🔜 |
+| E-004 | 0.0.5 | Decisiones & reputación | Flags persistentes, nodos YAML/JSON con condiciones y efectos. | ✅ |
 | E-005 | 0.0.6 | Combate & magia | Stats, talentos, escuelas Ceniza/Juramento, enemigos IA. | 🔜 |
 | E-006 | 0.0.7 | Economía & granja | Cultivos, estaciones, comercio dinámico y bioma adicional. | 🔜 |
 | E-007 | 0.0.8 | Eventos & audio reactivo | Eventos sistémicos, clima y capas musicales/SFX por bioma. | 🔜 |
@@ -13,9 +13,9 @@
 | E-009 | 0.0.10 | UX & accesibilidad | Overlays, remapeo completo, perfiles de entrada, daltonismo. | 🔜 |
 | E-010 | 0.0.11 | Guardado & optimización | Chunk streaming, pooling IA, validadores en CI y soporte modding data. | 🔜 |
 
-## Historias en foco (para 0.0.5)
-1. **Sistema de flags/reputación**: modelo de datos (`assets/data/decisions/*.json`) + reputación por facción.
-2. **Cadena “puente o peaje”**: nodos ramificados con efectos en comercio/precios, persistentes tras guardar/cargar.
-3. **Validadores automáticos**: script en `tools/` que verifique decisiones (flags referenciados, recompensas).
-4. **UI de decisiones**: panel minimalista que muestre opciones, requisitos y efectos visibles.
-5. **Pruebas de reglas**: JUnit para validar reputación/flags y asegurar determinismo.
+## Historias en foco (para 0.0.6)
+1. **Estadísticas y talentos**: definir componentes ECS para VIT/STM/ATK/DEF y árbol inicial.
+2. **Combate básico**: enemigos IA (3 tipos) con habilidades y mini-jefe que consume stamina/magia.
+3. **Magia Ceniza/Juramento**: proyectiles + escudos con estados (quemado/vínculo) y costos de recursos.
+4. **Telemetría de daño**: registrar DPS recibido/emitido para balance; overlay debug.
+5. **Pruebas**: casos unitarios para cálculos de daño/resistencias.

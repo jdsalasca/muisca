@@ -51,6 +51,15 @@ public class Inventory {
         return copy;
     }
 
+    public void setFromSnapshot(ObjectIntMap<String> data) {
+        items.clear();
+        for (ObjectIntMap.Entry<String> entry : data.entries()) {
+            if (entry.value > 0) {
+                items.put(entry.key, entry.value);
+            }
+        }
+    }
+
     public String summarize() {
         if (items.size == 0) {
             return "(vacío)";

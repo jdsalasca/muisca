@@ -27,6 +27,10 @@ import com.muisca.colony.Colonist.TaskType;
 import com.muisca.crafting.CraftingQueue;
 import com.muisca.crafting.Recipe;
 import com.muisca.crafting.RecipeBook;
+import com.muisca.decisions.DecisionEngine;
+import com.muisca.decisions.DecisionGraph;
+import com.muisca.decisions.DecisionNode;
+import com.muisca.decisions.DecisionState;
 import com.muisca.ecs.components.AutonomyComponent;
 import com.muisca.ecs.components.ColonistComponent;
 import com.muisca.ecs.components.InputControlComponent;
@@ -37,6 +41,8 @@ import com.muisca.ecs.systems.TaskSystem;
 import com.muisca.inventory.Inventory;
 import com.muisca.jobs.JobBoard;
 import com.muisca.jobs.JobBoard.HarvestSite;
+import com.muisca.reputation.ReputationTracker;
+import com.muisca.save.SaveManager;
 import com.muisca.structures.StructureBlueprint;
 import com.muisca.structures.StructureInstance;
 import com.muisca.structures.StructureLibrary;
@@ -77,6 +83,10 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
     private final StructureLibrary structureLibrary;
     private final StructureManager structureManager;
     private final Vector2 craftStation;
+    private final ReputationTracker reputationTracker = new ReputationTracker();
+    private final DecisionState decisionState = new DecisionState();
+    private final DecisionEngine decisionEngine;
+    private final SaveManager saveManager = new SaveManager("slot1");
 
     private Music ambientTrack;
     private final Vector2 inputDirection = new Vector2();
@@ -86,6 +96,7 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
     private int controlledColonistIndex = 0;
     private String statusMessage = "";
     private float statusTimer = 0f;
+    private boolean decisionVisible = false;
 
     public SettlementScreen(MuiscaGame game) {
         this.game = game;
@@ -106,6 +117,8 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         this.craftingQueue = new CraftingQueue(recipeBook, inventory, craftStation);
         this.structureLibrary = StructureLibrary.load(Gdx.files.internal("data/structures/basic.json"));
         this.structureManager = new StructureManager(structureLibrary, inventory);
+        DecisionGraph decisionGraph = DecisionGraph.load(Gdx.files.internal("data/decisions/bridge_toll.json"));
+        this.decisionEngine = new DecisionEngine(decisionGraph, inventory, reputationTracker, decisionState);
 
         this.engine = new Engine();
         engine.addSystem(new InputMovementSystem(worldMap, TILE_SIZE));
@@ -116,6 +129,9 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         createColonist("Quyca", centerX + 96, centerY + 32);
         createColonist("Suaga", centerX - 80, centerY - 64);
         selectColonist(0);
+
+        saveManager.read(inventory, structureManager, jobBoard, reputationTracker, decisionState);
+        craftingQueue.clearJobs();
 
         ambientTrack = Gdx.audio.newMusic(Gdx.files.internal("audio/proto_theme.wav"));
         ambientTrack.setLooping(true);
@@ -153,6 +169,7 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
 
     private void updateGame(float delta) {
         handleToggles();
+        handleSaveLoadInput();
         handleActions();
         applyInput(delta);
         engine.update(delta);
@@ -174,6 +191,13 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
     }
 
     private void handleActions() {
+        if (Gdx.input.isKeyJustPressed(Input.Keys.H)) {
+            toggleDecisionOverlay();
+        }
+        if (decisionVisible) {
+            handleDecisionInput();
+            return;
+        }
         if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_1)) {
             queueRecipe("plank_bundle");
         }
@@ -212,6 +236,23 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
             showStatus("Construido: " + blueprint.getName());
         } else {
             showStatus("Faltan recursos para " + blueprint.getName());
+        }
+    }
+
+    private void handleSaveLoadInput() {
+        if (Gdx.input.isKeyJustPressed(Input.Keys.F5)) {
+            saveManager.write(inventory, structureManager, jobBoard, reputationTracker, decisionState);
+            showStatus("Partida guardada.");
+        }
+        if (Gdx.input.isKeyJustPressed(Input.Keys.F9)) {
+            saveManager.read(inventory, structureManager, jobBoard, reputationTracker, decisionState);
+            craftingQueue.clearJobs();
+            for (Entity entity : colonistEntities) {
+                colonistMapper.get(entity).colonist.clearTask();
+            }
+            decisionVisible = false;
+            selectColonist(controlledColonistIndex);
+            showStatus("Partida cargada.");
         }
     }
 
@@ -319,6 +360,12 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         }
 
         builder.setLength(0);
+        builder.append("Reputación | Liga: ").append(MathUtils.round(reputationTracker.get("liga")))
+                .append(" | Vigías: ").append(MathUtils.round(reputationTracker.get("vigias")))
+                .append(" | Brasa: ").append(MathUtils.round(reputationTracker.get("brasa")));
+        font.draw(batch, builder, camera.position.x - 620, camera.position.y + 285);
+
+        builder.setLength(0);
         for (int i = 0; i < colonistEntities.size; i++) {
             Colonist colonist = colonistMapper.get(colonistEntities.get(i)).colonist;
             builder.append(i == controlledColonistIndex ? "> " : "  ");
@@ -329,6 +376,10 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
                     .append(" | Tarea ").append(colonist.getCurrentTask()).append('\n');
         }
         font.draw(batch, builder, camera.position.x - 620, camera.position.y + 260);
+
+        if (decisionVisible) {
+            drawDecisionOverlay();
+        }
 
         if (showDebug) {
             font.draw(batch,
@@ -374,6 +425,50 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
             shapeRenderer.circle(site.position.x, site.position.y, 6f, 12);
         }
         shapeRenderer.end();
+    }
+
+    private void drawDecisionOverlay() {
+        DecisionNode node = decisionEngine.getCurrentNode();
+        if (node == null) {
+            font.draw(batch, "[No hay decisiones activas]", camera.position.x - 620, camera.position.y - 280);
+            return;
+        }
+        StringBuilder panel = new StringBuilder();
+        panel.append("DECISIÓN: ").append(node.title).append("\n")
+                .append(node.description).append("\n");
+        for (int i = 0; i < node.options.size; i++) {
+            panel.append(i + 1).append(") ").append(node.options.get(i).label).append("\n");
+        }
+        panel.append("Pulsa número para elegir, H para cerrar.");
+        font.draw(batch, panel, camera.position.x - 620, camera.position.y - 250);
+    }
+
+    private void toggleDecisionOverlay() {
+        if (!decisionVisible && decisionEngine.getCurrentNode() == null) {
+            decisionEngine.resetToEntry();
+        }
+        decisionVisible = !decisionVisible;
+    }
+
+    private void handleDecisionInput() {
+        DecisionNode node = decisionEngine.getCurrentNode();
+        if (node == null) {
+            decisionVisible = false;
+            return;
+        }
+        for (int i = 0; i < node.options.size; i++) {
+            int key = Input.Keys.NUM_1 + i;
+            int numpad = Input.Keys.NUMPAD_1 + i;
+            if (Gdx.input.isKeyJustPressed(key) || Gdx.input.isKeyJustPressed(numpad)) {
+                DecisionEngine.Result result = decisionEngine.chooseOption(i);
+                showStatus(result.message);
+                if (result.success && (decisionEngine.getCurrentNode() == null
+                        || decisionEngine.getCurrentNode().options.size == 0)) {
+                    decisionVisible = false;
+                }
+                return;
+            }
+        }
     }
 
     private Texture[] createTileTextures() {

@@ -6,6 +6,7 @@ Simulador de colonia con tintes RPG inspirado en RimWorld, Dwarf Fortress y la c
 
 | Versión | Fecha | Notas |
 | --- | --- | --- |
+| 0.0.5 | 2025-11-11 | Sistema de decisiones/reputación (puente/peaje), flags persistentes, guardado/carga (`F5/F9`) e inventario/estructuras serializados. |
 | 0.0.4 | 2025-11-10 | Inventario compartido + recetas data-driven (madera→tablón→cama), cola de crafting, planos colocables (cama/caja) y HUD de recursos. |
 | 0.0.3 | 2025-11-10 | Colonos migrados a ECS (Ashley), cola de trabajos de recolección con nodos compartidos, overlay de recursos y mejoras HUD/audio. |
 | 0.0.2 | 2025-11-09 | Generador de biomas 96×96 tiles, 3 colonos con estados (hambre/espíritu/fatiga), conmutación de colono (Tab), malla chunk y música ambiental prototipo. |
@@ -37,12 +38,12 @@ Simulador de colonia con tintes RPG inspirado en RimWorld, Dwarf Fortress y la c
 gradlew.bat desktop:run
 ```
 
-Atajos actuales (v0.0.4):
+Atajos actuales (v0.0.5):
 
 - `WASD` mover al colono seleccionado (ECS).
 - `Shift` aplicar sprint temporal.
-- `1`/`2` solicitar recetas (tablones, cama); `B` y `N` colocan planos si hay recursos suficientes.
-- `Tab` alternar entre colonos, `C` mostrar/ocultar grilla de chunks, `F1` datos de depuración.
+- `1`/`2` solicitar recetas (tablones/cama); `B`/`N` colocan planos si hay recursos suficientes.
+- `H` abre/cierra decisiones (elige con números), `F5` guarda, `F9` carga, `Tab` alterna colonos, `C` grilla, `F1` debug.
 - Música ambiental (`assets/audio/proto_theme.wav`) se reproduce en loop al iniciar.
 
 ## Estructura
@@ -60,9 +61,9 @@ muisca/
 
 ## Próximos pasos sugeridos
 
-1. Persistir datos de mundo/recursos por chunk y exponer loaders (`assets/data/biomes.json`, `recipes/`).
-2. Implementar cadena de decisiones + reputación (0.0.5) con validadores automáticos.
-3. Desbloquear combate + magia (0.0.6) reutilizando la ECS y las métricas actuales.
+1. Persistir datos de mundo/recursos por chunk y exponer loaders avanzados (`assets/data/biomes.json`, `recipes/` overrides).
+2. Desbloquear combate + magia (0.0.6) reutilizando la ECS y las métricas actuales.
+3. Expandir economía/cultivos (0.0.7) y segundo bioma con comercio reputacional.
 4. Conectar audio modular (capas por bioma/evento) y telemetría de rendimiento.
 
 El roadmap completo con versiones 0.0.1–0.0.11 y las métricas asociadas viven en `docs/roadmap.md`. Revisa también `docs/backlog.md` y `docs/gdd.md` para lineamientos de diseño/optimización obligatorios.

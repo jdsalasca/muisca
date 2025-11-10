@@ -81,4 +81,10 @@ public class CraftingQueue {
     public Array<CraftingJob> getJobs() {
         return jobs;
     }
+
+    public void clearJobs() {
+        jobs.clear();
+        jobLookup.clear();
+        nextId = 1;
+    }
 }
