@@ -1,0 +1,19 @@
+plugins {
+    id("application")
+    id("java")
+}
+
+dependencies {
+    implementation(project(":core"))
+    implementation("com.badlogicgames.gdx:gdx-backend-lwjgl3:${rootProject.ext.gdxVersion}")
+    runtimeOnly("com.badlogicgames.gdx:gdx-platform:${rootProject.ext.gdxVersion}:natives-desktop")
+}
+
+application {
+    mainClass = "com.muisca.desktop.DesktopLauncher"
+}
+
+tasks.named("run", JavaExec).configure {
+    workingDir = rootProject.file("assets")
+    standardInput = System.in
+}

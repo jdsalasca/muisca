@@ -1,0 +1,9 @@
+plugins {
+    id("java-library")
+}
+
+dependencies {
+    api("com.badlogicgames.gdx:gdx:${rootProject.ext.gdxVersion}")
+    api("com.badlogicgames.ashley:ashley:${rootProject.ext.ashleyVersion}")
+    implementation("com.badlogicgames.gdx:gdx-ai:${rootProject.ext.aiVersion}")
+}

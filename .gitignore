@@ -1,0 +1,14 @@
+.gradle/
+build/
+*/build/
+!gradle/wrapper/gradle-wrapper.jar
+.idea/
+*.iml
+.DS_Store
+/.toolchains/
+/.cache/
+/.gradle-dist/
+.vscode/
+*.log
+assets/.DS_Store
+desktop/run/

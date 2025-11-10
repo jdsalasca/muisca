@@ -1,0 +1,46 @@
+plugins {
+    id("base")
+}
+
+ext {
+    gdxVersion = "1.12.1"
+    ashleyVersion = "1.7.3"
+    aiVersion = "1.8.2"
+}
+
+allprojects {
+    group = "com.muisca"
+    version = "0.0.1"
+
+    repositories {
+        mavenCentral()
+    }
+}
+
+subprojects {
+    plugins.withType(JavaPlugin).configureEach {
+        java {
+            toolchain {
+                languageVersion = JavaLanguageVersion.of(25)
+            }
+        }
+    }
+
+    tasks.withType(JavaCompile).configureEach {
+        options.encoding = "UTF-8"
+    }
+
+    tasks.withType(JavaExec).configureEach {
+        javaLauncher = javaToolchains.launcherFor {
+            languageVersion = JavaLanguageVersion.of(25)
+        }
+    }
+}
+
+tasks.register("printJavaVersion") {
+    group = "verification"
+    description = "Prints the Java runtime used by Gradle."
+    doLast {
+        println "Gradle running on Java: ${System.getProperty('java.version')} (${System.getProperty('java.vendor')})"
+    }
+}
