@@ -29,6 +29,7 @@ All notable changes to this project will be documented here. The format loosely 
  - Telemetría y formato de logs:
    - Nuevo `SystemTelemetry` (CSV `systems.csv`) para registrar cambios de clima (toggle F3) y actualizaciones del factor de regeneración ambiental por frame.
    - `DamageTelemetry` ahora escribe CSV con encabezado (`timestamp,dir,source,target,amount,type,ability`) y por defecto a `telemetry/damage.csv`.
+   - Nuevo `InventoryTelemetry` (CSV `inventory.csv`) integrado en `Inventory`: registra altas `add` y consumos `consume` de ítems con contexto.
    - Mensajes de consola normalizados para diagnóstico rápido: `[System] regen_env_update ...` y `[Damage] ...`.
 
 ### Changed
@@ -38,6 +39,7 @@ All notable changes to this project will be documented here. The format loosely 
 
 ### Notes
 - Verificado en JDK 25: build y run correctos; se mantienen advertencias de LWJGL relacionadas con `sun.misc.Unsafe` (pendiente actualización de backend). Se crean `telemetry/damage.csv` y `telemetry/systems.csv` durante la sesión de juego.
+ - Se crea también `telemetry/inventory.csv` al añadir/consumir ítems del inventario durante gameplay.
 
 ## [0.0.6] - 2025-11-12
 
