@@ -1,6 +1,7 @@
 package com.muisca.ecs.components;
 
 import com.badlogic.ashley.core.Component;
+import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.utils.Array;
 import com.muisca.combat.StatusEffect;
 import com.muisca.combat.StatusEffectInstance;
@@ -38,5 +39,24 @@ public class StatusComponent implements Component {
             bonus += bond.potency;
         }
         return bonus;
+    }
+
+    public boolean isStaggered() {
+        StatusEffectInstance stagger = get(StatusEffect.STAGGER);
+        return stagger != null && !stagger.isExpired();
+    }
+
+    public float getMovementMultiplier() {
+        if (isStaggered()) {
+            return 0f;
+        }
+        float multiplier = 1f;
+        for (StatusEffectInstance instance : statuses) {
+            if (instance.effect == StatusEffect.SLOW && !instance.isExpired()) {
+                float slowFactor = MathUtils.clamp(1f - instance.potency, 0f, 1f);
+                multiplier *= slowFactor;
+            }
+        }
+        return MathUtils.clamp(multiplier, 0f, 1f);
     }
 }

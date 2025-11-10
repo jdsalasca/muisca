@@ -13,6 +13,7 @@ import com.muisca.combat.StatusEffect;
 import com.muisca.ecs.components.CombatIdentityComponent;
 import com.muisca.ecs.components.ColonistComponent;
 import com.muisca.ecs.components.EnemyComponent;
+import com.muisca.ecs.components.ForceComponent;
 import com.muisca.ecs.components.PlayerCombatComponent;
 import com.muisca.ecs.components.SpellbookComponent;
 import com.muisca.ecs.components.SpellbookComponent.SpellSlot;
@@ -28,6 +29,7 @@ public class PlayerCombatSystem extends IteratingSystem {
     private final ComponentMapper<CombatIdentityComponent> identityMapper = ComponentMapper.getFor(CombatIdentityComponent.class);
     private final ComponentMapper<StatusComponent> statusMapper = ComponentMapper.getFor(StatusComponent.class);
     private final ComponentMapper<EnemyComponent> enemyMapper = ComponentMapper.getFor(EnemyComponent.class);
+    private final ComponentMapper<ForceComponent> forceMapper = ComponentMapper.getFor(ForceComponent.class);
 
     private ImmutableArray<Entity> enemyEntities;
     private final DamageTelemetry telemetry;
@@ -51,6 +53,14 @@ public class PlayerCombatSystem extends IteratingSystem {
     protected void processEntity(Entity entity, float deltaTime) {
         StatsComponent stats = statsMapper.get(entity);
         if (!stats.stats.isAlive()) {
+            return;
+        }
+        StatusComponent status = statusMapper.get(entity);
+        if (status != null && status.isStaggered()) {
+            PlayerCombatComponent player = playerMapper.get(entity);
+            if (player != null) {
+                player.resetRequests();
+            }
             return;
         }
         PlayerCombatComponent playerCombat = playerMapper.get(entity);
@@ -111,6 +121,9 @@ public class PlayerCombatSystem extends IteratingSystem {
                     resolveStatusPotency(slot.spell.statusEffect, slot.spell.statusPotency),
                     slot.spell.statusTickInterval, casterIdentity.name);
         }
+        if (slot.spell.knockback > 0f) {
+            applyKnockback(casterEntity, target, slot.spell.knockback);
+        }
     }
 
     private float resolveStatusPotency(StatusEffect effect, float base) {
@@ -142,6 +155,21 @@ public class PlayerCombatSystem extends IteratingSystem {
             }
         }
         return best;
+    }
+
+    private void applyKnockback(Entity caster, Entity target, float strength) {
+        ForceComponent force = forceMapper.get(target);
+        if (force == null) {
+            return;
+        }
+        Vector2 origin = getPosition(caster, temp);
+        Vector2 targetPos = getPosition(target, temp2);
+        temp2.set(targetPos).sub(origin);
+        if (temp2.isZero(0.01f)) {
+            temp2.set(1f, 0f);
+        }
+        temp2.nor().scl(strength);
+        force.velocity.add(temp2);
     }
 
     private Vector2 getPosition(Entity entity, Vector2 out) {

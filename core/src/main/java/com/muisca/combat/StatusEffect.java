@@ -5,5 +5,7 @@ package com.muisca.combat;
  */
 public enum StatusEffect {
     BURN,
-    BOND
+    BOND,
+    SLOW,
+    STAGGER
 }

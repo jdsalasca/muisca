@@ -10,6 +10,7 @@ import com.muisca.crafting.CraftingQueue;
 import com.muisca.ecs.components.AutonomyComponent;
 import com.muisca.ecs.components.ColonistComponent;
 import com.muisca.ecs.components.InputControlComponent;
+import com.muisca.ecs.components.StatusComponent;
 import com.muisca.ecs.components.StatsComponent;
 import com.muisca.inventory.Inventory;
 import com.muisca.jobs.JobBoard;
@@ -19,6 +20,7 @@ public class AutonomySystem extends IteratingSystem {
 
     private final ComponentMapper<ColonistComponent> colonistMapper = ComponentMapper.getFor(ColonistComponent.class);
     private final ComponentMapper<InputControlComponent> inputMapper = ComponentMapper.getFor(InputControlComponent.class);
+    private final ComponentMapper<StatusComponent> statusMapper = ComponentMapper.getFor(StatusComponent.class);
     private final ComponentMapper<StatsComponent> statsMapper = ComponentMapper.getFor(StatsComponent.class);
     private final WorldMap worldMap;
     private final int tileSize;
@@ -46,20 +48,26 @@ public class AutonomySystem extends IteratingSystem {
         if (stats != null && !stats.stats.isAlive()) {
             return;
         }
+        StatusComponent status = statusMapper.get(entity);
+        if (status != null && status.isStaggered()) {
+            return;
+        }
+        float speedMultiplier = status != null ? status.getMovementMultiplier() : 1f;
+        float scaledDelta = deltaTime * Math.max(0.1f, speedMultiplier);
         Colonist colonist = colonistMapper.get(entity).colonist;
         if (!colonist.hasActiveTask()) {
-            colonist.updateAutonomy(deltaTime, worldMap, tileSize);
+            colonist.updateAutonomy(scaledDelta, worldMap, tileSize);
             return;
         }
         if (colonist.getCurrentTask() == TaskType.HARVEST) {
-            boolean finished = colonist.updateHarvestTask(deltaTime, worldMap, tileSize);
+            boolean finished = colonist.updateHarvestTask(scaledDelta, worldMap, tileSize);
             if (finished) {
                 jobBoard.completeJob(colonist.getJobId());
                 inventory.add("raw_wood", 1);
                 colonist.clearTask();
             }
         } else if (colonist.getCurrentTask() == TaskType.CRAFT) {
-            boolean finished = colonist.updateCraftTask(deltaTime, worldMap, tileSize);
+            boolean finished = colonist.updateCraftTask(scaledDelta, worldMap, tileSize);
             if (finished) {
                 craftingQueue.completeJob(colonist.getJobId());
                 colonist.clearTask();

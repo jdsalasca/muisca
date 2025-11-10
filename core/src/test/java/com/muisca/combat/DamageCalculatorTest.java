@@ -13,7 +13,7 @@ class DamageCalculatorTest {
         CombatStats defender = CombatStats.enemyBaseline(10f, 10f, 10f, 8f, 8f);
         SpellDefinition spell = new SpellDefinition("test_flame", "Test Flame", SpellSchool.CENIZA,
                 DamageType.FIRE, 20f, 0.5f, 0f, 0f, 200f, 1f,
-                null, 0f, 0f, 1f);
+                null, 0f, 0f, 1f, 0f);
         float damage = DamageCalculator.computeSpellDamage(spell, attacker, defender, null);
         assertEquals(20.3f, damage, 0.01f);
     }
@@ -24,7 +24,7 @@ class DamageCalculatorTest {
         CombatStats defender = CombatStats.enemyBaseline(10f, 10f, 10f, 8f, 8f);
         SpellDefinition spell = new SpellDefinition("test_bind", "Test Bind", SpellSchool.JURAMENTO,
                 DamageType.FIRE, 20f, 0.5f, 0f, 0f, 200f, 1f,
-                StatusEffect.BOND, 5f, 0.25f, 2f);
+                StatusEffect.BOND, 5f, 0.25f, 2f, 0f);
         StatusComponent status = new StatusComponent();
         status.put(StatusEffect.BOND, 5f, 0.25f, 1f, "tester");
         float damage = DamageCalculator.computeSpellDamage(spell, attacker, defender, status);

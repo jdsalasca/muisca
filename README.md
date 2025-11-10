@@ -69,6 +69,12 @@ Atajos actuales (v0.0.6):
 - `H` abre/cierra decisiones (elige con números), `F5` guarda, `F9` carga, `Tab` alterna colonos, `C` grilla, `F1` debug.
 - Música ambiental (`assets/audio/proto_theme.wav`) se reproduce en loop al iniciar.
 
+### Combate v0.0.6
+
+- Hechizos de Ceniza aplican quemaduras, empujes (`knockback`) y aturdimientos cortos; Juramento aporta vínculos, ralentizaciones (`SLOW`) y contraataques.
+- Estados activos (Burn/SLOW/ STAGGER/Bond) se preservan al guardar y restaurar.
+- La física ligera introduce fuerzas acumulables; enemigos y colonos pueden deslizarse por el mapa, así que procura mantener a tus magos lejos de los bordes.
+
 ## Estructura
 
 ```

@@ -15,6 +15,7 @@ import com.muisca.combat.StatusEffect;
 import com.muisca.ecs.components.CombatIdentityComponent;
 import com.muisca.ecs.components.ColonistComponent;
 import com.muisca.ecs.components.EnemyComponent;
+import com.muisca.ecs.components.ForceComponent;
 import com.muisca.ecs.components.SpellbookComponent;
 import com.muisca.ecs.components.SpellbookComponent.SpellSlot;
 import com.muisca.ecs.components.StatsComponent;
@@ -29,11 +30,13 @@ public class EnemyAISystem extends IteratingSystem {
     private final ComponentMapper<StatusComponent> statusMapper = ComponentMapper.getFor(StatusComponent.class);
     private final ComponentMapper<CombatIdentityComponent> identityMapper = ComponentMapper.getFor(CombatIdentityComponent.class);
     private final ComponentMapper<ColonistComponent> colonistMapper = ComponentMapper.getFor(ColonistComponent.class);
+    private final ComponentMapper<ForceComponent> forceMapper = ComponentMapper.getFor(ForceComponent.class);
 
     private ImmutableArray<Entity> colonistEntities;
     private final DamageTelemetry telemetry;
     private final Vector2 temp = new Vector2();
     private final Vector2 temp2 = new Vector2();
+    private final Vector2 temp3 = new Vector2();
 
     public EnemyAISystem(DamageTelemetry telemetry) {
         super(Family.all(EnemyComponent.class, StatsComponent.class, CombatIdentityComponent.class).get());
@@ -54,13 +57,18 @@ public class EnemyAISystem extends IteratingSystem {
         if (!stats.stats.isAlive()) {
             return;
         }
+        StatusComponent status = statusMapper.get(entity);
+        if (status != null && status.isStaggered()) {
+            return;
+        }
+        float movementScalar = status != null ? status.getMovementMultiplier() : 1f;
         enemy.attackTimer = Math.max(0f, enemy.attackTimer - deltaTime);
         Entity target = findTarget(enemy);
         if (target == null) {
             return;
         }
         Vector2 targetPos = getPosition(target, temp2);
-        moveTowards(enemy, targetPos, deltaTime);
+        moveTowards(enemy, targetPos, deltaTime, movementScalar);
         float distance = enemy.position.dst(targetPos);
         if (tryCastSpell(entity, target, distance)) {
             return;
@@ -70,16 +78,16 @@ public class EnemyAISystem extends IteratingSystem {
         }
     }
 
-    private void moveTowards(EnemyComponent enemy, Vector2 target, float delta) {
+    private void moveTowards(EnemyComponent enemy, Vector2 target, float delta, float movementScalar) {
         Vector2 position = enemy.position;
         EnemyArchetype archetype = enemy.archetype;
         float distance = position.dst(target);
         Vector2 desired = temp.set(target).sub(position);
         if (distance > archetype.preferredDistance + 10f) {
-            desired.nor().scl(archetype.movementSpeed * delta);
+            desired.nor().scl(archetype.movementSpeed * delta * movementScalar);
             position.add(desired);
         } else if (distance < archetype.preferredDistance - 10f) {
-            desired.nor().scl(archetype.movementSpeed * delta);
+            desired.nor().scl(archetype.movementSpeed * delta * movementScalar);
             position.sub(desired);
         }
     }
@@ -113,6 +121,9 @@ public class EnemyAISystem extends IteratingSystem {
                 targetStatus.put(slot.spell.statusEffect, slot.spell.statusDuration,
                         slot.spell.statusPotency, slot.spell.statusTickInterval, casterIdentity.name);
             }
+            if (slot.spell.knockback > 0f) {
+                applyKnockback(caster, target, slot.spell.knockback);
+            }
             enemyMapper.get(caster).attackTimer = 0.5f;
             return true;
         }
@@ -132,6 +143,7 @@ public class EnemyAISystem extends IteratingSystem {
         damage = Math.max(1f, damage - targetStats.stats.getMitigation(DamageType.PHYSICAL) * 0.3f);
         targetStats.stats.applyDamage(damage);
         telemetry.record(identity.name, targetIdentity.name, damage, DamageType.PHYSICAL, "Golpe", false);
+        applyKnockback(null, target, enemy.archetype.meleeRange * 0.3f);
         enemy.attackTimer = 1.2f;
     }
 
@@ -170,5 +182,25 @@ public class EnemyAISystem extends IteratingSystem {
             return out.set(enemy.position);
         }
         return out.set(0f, 0f);
+    }
+
+    private void applyKnockback(Entity source, Entity target, float strength) {
+        ForceComponent force = forceMapper.get(target);
+        if (force == null || strength <= 0f) {
+            return;
+        }
+        Vector2 targetPos = getPosition(target, temp2);
+        Vector2 direction = temp.set(targetPos);
+        if (source != null) {
+            Vector2 sourcePos = getPosition(source, temp3);
+            direction.sub(sourcePos);
+        } else {
+            direction.add(0f, 1f);
+        }
+        if (direction.isZero(0.01f)) {
+            direction.set(1f, 0f);
+        }
+        direction.nor().scl(strength);
+        force.velocity.add(direction);
     }
 }

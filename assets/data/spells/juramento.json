@@ -10,11 +10,12 @@
       "staminaCost": 8,
       "focusCost": 8,
       "range": 240,
-      "cooldown": 2.8,
+      "cooldown": 2.6,
+      "knockback": 60,
       "status": {
         "type": "BOND",
         "duration": 6,
-        "potency": 0.2,
+        "potency": 0.25,
         "tickInterval": 2
       }
     },
@@ -22,17 +23,36 @@
       "id": "warding_sigils",
       "name": "Warding Sigils",
       "damageType": "ARCANE",
-      "baseDamage": 14,
+      "baseDamage": 12,
       "attackScaling": 0.4,
-      "staminaCost": 6,
-      "focusCost": 10,
-      "range": 200,
-      "cooldown": 2.2,
+      "staminaCost": 5,
+      "focusCost": 9,
+      "range": 220,
+      "cooldown": 2.0,
+      "knockback": 40,
       "status": {
-        "type": "BOND",
-        "duration": 5,
-        "potency": 0.15,
-        "tickInterval": 1.5
+        "type": "SLOW",
+        "duration": 4,
+        "potency": 0.35,
+        "tickInterval": 1
+      }
+    },
+    {
+      "id": "oath_shatter",
+      "name": "Oath Shatter",
+      "damageType": "ARCANE",
+      "baseDamage": 22,
+      "attackScaling": 0.7,
+      "staminaCost": 12,
+      "focusCost": 14,
+      "range": 230,
+      "cooldown": 3.6,
+      "knockback": 160,
+      "status": {
+        "type": "STAGGER",
+        "duration": 1.1,
+        "potency": 0,
+        "tickInterval": 1
       }
     }
   ]

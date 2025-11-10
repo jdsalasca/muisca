@@ -44,6 +44,7 @@ import com.muisca.ecs.components.AutonomyComponent;
 import com.muisca.ecs.components.CombatIdentityComponent;
 import com.muisca.ecs.components.ColonistComponent;
 import com.muisca.ecs.components.EnemyComponent;
+import com.muisca.ecs.components.ForceComponent;
 import com.muisca.ecs.components.InputControlComponent;
 import com.muisca.ecs.components.PlayerCombatComponent;
 import com.muisca.ecs.components.SpellbookComponent;
@@ -54,6 +55,7 @@ import com.muisca.ecs.components.TalentComponent;
 import com.muisca.ecs.systems.AutonomySystem;
 import com.muisca.ecs.systems.CombatResourceSystem;
 import com.muisca.ecs.systems.EnemyAISystem;
+import com.muisca.ecs.systems.ForceSystem;
 import com.muisca.ecs.systems.InputMovementSystem;
 import com.muisca.ecs.systems.PlayerCombatSystem;
 import com.muisca.ecs.systems.StatusSystem;
@@ -182,6 +184,7 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         engine.addSystem(new CombatResourceSystem());
         engine.addSystem(new PlayerCombatSystem(damageTelemetry));
         engine.addSystem(new EnemyAISystem(damageTelemetry));
+        engine.addSystem(new ForceSystem(worldMap, TILE_SIZE));
         engine.addSystem(new StatusSystem(damageTelemetry));
 
         createColonist("Ama", centerX, centerY, TalentId.CENIZA_DISCIPLINE, TalentId.JURAMENTO_WARD);
@@ -209,6 +212,7 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         entity.add(new AutonomyComponent());
         entity.add(new TaskComponent());
         entity.add(new CombatIdentityComponent(name, CombatIdentityComponent.Faction.PLAYER));
+        entity.add(new ForceComponent());
         StatsComponent stats = new StatsComponent(CombatStats.colonistBaseline());
         TalentComponent talentComponent = new TalentComponent();
         if (talents != null) {

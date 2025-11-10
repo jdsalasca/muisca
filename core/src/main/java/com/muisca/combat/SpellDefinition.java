@@ -18,6 +18,7 @@ public final class SpellDefinition {
     public final float statusDuration;
     public final float statusPotency;
     public final float statusTickInterval;
+    public final float knockback;
 
     public SpellDefinition(String id,
                            String name,
@@ -32,7 +33,8 @@ public final class SpellDefinition {
                            StatusEffect statusEffect,
                            float statusDuration,
                            float statusPotency,
-                           float statusTickInterval) {
+                           float statusTickInterval,
+                           float knockback) {
         this.id = id;
         this.name = name;
         this.school = school;
@@ -47,6 +49,7 @@ public final class SpellDefinition {
         this.statusDuration = statusDuration;
         this.statusPotency = statusPotency;
         this.statusTickInterval = statusTickInterval <= 0f ? 1f : statusTickInterval;
+        this.knockback = knockback;
     }
 
     public boolean appliesStatus() {
@@ -67,6 +70,7 @@ public final class SpellDefinition {
         float statusDuration = 0f;
         float statusPotency = 0f;
         float statusTick = 1f;
+        float knockback = value.getFloat("knockback", 0f);
         JsonValue statusJson = value.get("status");
         if (statusJson != null) {
             statusEffect = StatusEffect.valueOf(statusJson.getString("type"));
@@ -76,6 +80,6 @@ public final class SpellDefinition {
         }
         return new SpellDefinition(id, name, school, type, baseDamage, attackScaling,
                 staminaCost, focusCost, range, cooldown,
-                statusEffect, statusDuration, statusPotency, statusTick);
+                statusEffect, statusDuration, statusPotency, statusTick, knockback);
     }
 }

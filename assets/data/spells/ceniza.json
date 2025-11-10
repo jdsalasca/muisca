@@ -5,12 +5,13 @@
       "id": "ember_burst",
       "name": "Ember Burst",
       "damageType": "FIRE",
-      "baseDamage": 22,
-      "attackScaling": 0.65,
+      "baseDamage": 24,
+      "attackScaling": 0.7,
       "staminaCost": 10,
       "focusCost": 6,
       "range": 260,
-      "cooldown": 2.4,
+      "cooldown": 2.2,
+      "knockback": 110,
       "status": {
         "type": "BURN",
         "duration": 4,
@@ -22,12 +23,13 @@
       "id": "cinder_chain",
       "name": "Cinder Chain",
       "damageType": "FIRE",
-      "baseDamage": 28,
-      "attackScaling": 0.8,
+      "baseDamage": 30,
+      "attackScaling": 0.85,
       "staminaCost": 14,
       "focusCost": 10,
-      "range": 230,
-      "cooldown": 3.2,
+      "range": 240,
+      "cooldown": 3.0,
+      "knockback": 150,
       "status": {
         "type": "BURN",
         "duration": 5,
@@ -39,17 +41,36 @@
       "id": "ashen_nova",
       "name": "Ashen Nova",
       "damageType": "FIRE",
-      "baseDamage": 35,
+      "baseDamage": 36,
       "attackScaling": 1.0,
       "staminaCost": 20,
       "focusCost": 16,
       "range": 210,
-      "cooldown": 4.5,
+      "cooldown": 4.2,
+      "knockback": 200,
       "status": {
-        "type": "BURN",
-        "duration": 6,
-        "potency": 6,
-        "tickInterval": 0.7
+        "type": "STAGGER",
+        "duration": 1.2,
+        "potency": 0,
+        "tickInterval": 1
+      }
+    },
+    {
+      "id": "magma_wave",
+      "name": "Magma Wave",
+      "damageType": "FIRE",
+      "baseDamage": 18,
+      "attackScaling": 0.45,
+      "staminaCost": 8,
+      "focusCost": 4,
+      "range": 220,
+      "cooldown": 1.6,
+      "knockback": 80,
+      "status": {
+        "type": "SLOW",
+        "duration": 3.5,
+        "potency": 0.3,
+        "tickInterval": 1
       }
     }
   ]

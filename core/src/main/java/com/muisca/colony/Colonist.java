@@ -167,6 +167,10 @@ public class Colonist {
         clampToWorld(map, tileSize);
     }
 
+    public void applyImpulse(float dx, float dy, WorldMap map, int tileSize) {
+        move(dx, dy, map, tileSize);
+    }
+
     private void clampToWorld(WorldMap map, int tileSize) {
         float maxX = map.getWidth() * tileSize;
         float maxY = map.getHeight() * tileSize;
