@@ -88,6 +88,7 @@ import com.muisca.world.WorldMap;
 import com.muisca.enemies.EnemyArchetype;
 import com.muisca.enemies.EnemyFactory;
 import com.muisca.telemetry.SystemTelemetry;
+import com.muisca.telemetry.InventoryTelemetry;
 
 /**
  * v0.0.6 slice – colonos ECS + combate/magia y encuentro prototipo.
@@ -145,6 +146,7 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
     private final SaveManager saveManager = new SaveManager("slot1");
     private final DamageTelemetry damageTelemetry;
     private final SystemTelemetry systemTelemetry;
+    private final InventoryTelemetry inventoryTelemetry;
     private final FloraField floraField;
     private final ElderLibrary elderLibrary;
     private final ElderAura elderAura = new ElderAura();
@@ -188,6 +190,8 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         this.damageTelemetry = new DamageTelemetry(damageCsv);
         FileHandle systemsCsv = telemetryDir.child("systems.csv");
         this.systemTelemetry = new SystemTelemetry(systemsCsv);
+        FileHandle inventoryCsv = telemetryDir.child("inventory.csv");
+        this.inventoryTelemetry = new InventoryTelemetry(inventoryCsv);
 
         this.worldMap = new WorldGenerator(WORLD_WIDTH_TILES, WORLD_HEIGHT_TILES, CHUNK_SIZE, 140_921L).generate();
         this.tileTextures = createTileTextures();
@@ -209,6 +213,7 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         this.craftingQueue = new CraftingQueue(recipeBook, inventory, craftStation);
         this.structureLibrary = StructureLibrary.load(Gdx.files.internal("data/structures/basic.json"));
         this.structureManager = new StructureManager(structureLibrary, inventory);
+        this.inventory.bindTelemetry(inventoryTelemetry);
         DecisionGraph decisionGraph = DecisionGraph.load(Gdx.files.internal("data/decisions/bridge_toll.json"));
         this.decisionEngine = new DecisionEngine(decisionGraph, inventory, reputationTracker, decisionState);
 

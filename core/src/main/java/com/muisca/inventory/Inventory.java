@@ -4,6 +4,7 @@ import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.ObjectIntMap;
 import com.badlogic.gdx.utils.StringBuilder;
 import com.muisca.structures.StructureManager;
+import com.muisca.telemetry.InventoryTelemetry;
 
 /**
  * Shared colony inventory (per settlement) used for crafting and construction.
@@ -12,12 +13,16 @@ public class Inventory {
 
     private final ObjectIntMap<String> items = new ObjectIntMap<>();
     private StructureManager storageManager;
+    private InventoryTelemetry telemetry;
 
     public void add(String itemId, int amount) {
         if (amount <= 0) {
             return;
         }
         items.getAndIncrement(itemId, 0, amount);
+        if (telemetry != null) {
+            telemetry.logAdd(itemId, amount);
+        }
     }
 
     public boolean has(String itemId, int amount) {
@@ -45,12 +50,19 @@ public class Inventory {
             if (storageManager != null) {
                 storageManager.withdrawFromStorage(entry.key, entry.value);
             }
+            if (telemetry != null) {
+                telemetry.logConsume(entry.key, entry.value);
+            }
         }
         return true;
     }
 
     public void bindStorageManager(StructureManager manager) {
         this.storageManager = manager;
+    }
+
+    public void bindTelemetry(InventoryTelemetry telemetry) {
+        this.telemetry = telemetry;
     }
 
     public ObjectIntMap<String> snapshot() {
