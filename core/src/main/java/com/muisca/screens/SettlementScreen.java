@@ -169,6 +169,10 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
     private final Array<Entity> enemyEntities = new Array<>();
     private final Texture enemyTexture;
     private boolean showPerfOverlay = false;
+    // Overlay de diagnóstico para visualizar algo aunque falle el render de mundo
+    private boolean showFallbackOverlay = true;
+    private int renderFrames = 0;
+    private float renderSecondsAccum = 0f;
     // Simple weather and lighting
     private boolean isRaining = false;
     private float rainIntensity = 0.7f; // 0..1
@@ -267,6 +271,19 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
             recordInitError("data/decisions/bridge_toll.json", ex);
         }
         this.decisionEngine = decisionTmp;
+
+        // Logs de arranque contundentes para validar estado del mundo y texturas
+        try {
+            Gdx.app.log("Boot", "WorldMap " + worldMap.getWidth() + "x" + worldMap.getHeight()
+                    + " | Tiles=" + (tileTextures != null ? tileTextures.length : -1)
+                    + " | Colonists (pre)=" + colonistEntities.size
+                    + " | Structures=" + structureManager.getInstances().size);
+            if (tileTextures != null && tileTextures.length > 0) {
+                Gdx.app.log("Boot", "Tile[0] presente=" + (tileTextures[0] != null));
+            }
+        } catch (Exception e) {
+            recordInitError("Boot/initial-log", e);
+        }
 
         this.engine = new Engine();
         engine.addSystem(new InputMovementSystem(worldMap, TILE_SIZE));
@@ -650,7 +667,28 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         drawHud(delta);
         batch.end();
 
+        // Fallback visual para confirmar pipeline de render aunque algo de mundo falle
+        if (showFallbackOverlay) {
+            drawFallbackOverlay();
+        }
+
         drawOverlays();
+
+        // Heartbeat de render cada ~1s
+        renderFrames++;
+        renderSecondsAccum += delta;
+        if (renderSecondsAccum >= 1.0f) {
+            try {
+                Gdx.app.log("Render", "frames=" + renderFrames
+                        + " | cam=" + MathUtils.floor(camera.position.x) + "," + MathUtils.floor(camera.position.y)
+                        + " | colonists=" + colonistEntities.size
+                        + " | enemies=" + enemyEntities.size
+                        + " | chunks=" + worldMap.getChunkSize());
+            } catch (Exception e) {
+                // No debe romper el render por el log
+            }
+            renderSecondsAccum = 0f;
+        }
     }
 
     private void updateGame(float delta) {
@@ -695,6 +733,10 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         if (Gdx.input.isKeyJustPressed(Input.Keys.F2)) {
             showPerfOverlay = !showPerfOverlay;
             Gdx.app.log("Input", "F2 -> showPerfOverlay=" + showPerfOverlay);
+        }
+        if (Gdx.input.isKeyJustPressed(Input.Keys.F4)) {
+            showFallbackOverlay = !showFallbackOverlay;
+            Gdx.app.log("Input", "F4 -> showFallbackOverlay=" + showFallbackOverlay);
         }
         if (Gdx.input.isKeyJustPressed(Input.Keys.F3)) {
             isRaining = !isRaining;
@@ -1173,6 +1215,27 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
                 float y = MathUtils.random(camTop - 10f, camTop + 30f);
                 rainDrops.add(new Vector2(x, y));
             }
+        }
+    }
+
+    // Dibujo de emergencia para diagnosticar pantalla negra: un rectángulo y una cruz en el centro
+    private void drawFallbackOverlay() {
+        try {
+            float cx = worldCenterX;
+            float cy = worldCenterY;
+            shapeRenderer.setProjectionMatrix(camera.combined);
+            shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+            shapeRenderer.setColor(0.1f, 0.8f, 0.2f, 0.25f);
+            shapeRenderer.rect(cx - 40, cy - 40, 80, 80);
+            shapeRenderer.end();
+            shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
+            shapeRenderer.setColor(0.2f, 0.95f, 0.3f, 0.8f);
+            shapeRenderer.line(cx - 60, cy, cx + 60, cy);
+            shapeRenderer.line(cx, cy - 60, cx, cy + 60);
+            shapeRenderer.end();
+        } catch (Exception e) {
+            // No interferir con el render normal; solo es diagnóstico
+            Gdx.app.log("Fallback", "Error dibujando overlay: " + e.getMessage());
         }
     }
 
