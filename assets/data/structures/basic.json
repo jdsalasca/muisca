@@ -1,0 +1,20 @@
+{
+  "structures": [
+    {
+      "id": "camp_bed",
+      "name": "Cama de campaña",
+      "width": 64,
+      "height": 28,
+      "color": "B58B57",
+      "cost": { "camp_bed": 1 }
+    },
+    {
+      "id": "storage_crate",
+      "name": "Baúl de almacenamiento",
+      "width": 48,
+      "height": 32,
+      "color": "8B6236",
+      "cost": { "plank": 6 }
+    }
+  ]
+}

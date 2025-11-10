@@ -6,6 +6,19 @@ All notable changes to this project will be documented here. The format loosely 
 
 All notable changes to this project will be documented here. The format loosely follows [Keep a Changelog](https://keepachangelog.com/) while the versioning scheme will track playable milestones.
 
+## [0.0.4] - 2025-11-10
+
+### Added
+- Inventario compartido (`Inventory`) y cola de crafting data-driven (`assets/data/recipes/woodworking.json`) con recetas madera→tablón→cama.
+- Sistema de planos (`StructureLibrary/Manager`) con colocación en tiempo real (cama de campaña y caja de almacenaje).
+- HUD ampliado que muestra inventario, pedidos pendientes y mensajes contextuales; nuevas teclas: `1/2` recetas, `B/N` planos.
+- Nuevos datos JSON (`recipes`, `structures`) y managers de construcción.
+
+### Changed
+- `SettlementScreen` ahora orquesta ECS + inventario + crafting + estructuras; colonos puede abortar tareas manualmente.
+- `AutonomySystem` y `TaskSystem` priorizan trabajos de crafting antes que tala y depositan recursos en el inventario.
+- Toolchains Linux apuntan a `.toolchains/linux-openjdk*`; README actualizado a 0.0.4.
+
 ## [0.0.3] - 2025-11-10
 
 ### Added

@@ -2,6 +2,7 @@ package com.muisca.colony;
 
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Vector2;
+import com.muisca.crafting.Recipe;
 import com.muisca.world.WorldMap;
 
 /**
@@ -11,7 +12,8 @@ public class Colonist {
 
     public enum TaskType {
         IDLE,
-        HARVEST
+        HARVEST,
+        CRAFT
     }
 
     private final String name;
@@ -28,6 +30,7 @@ public class Colonist {
     private TaskType currentTask = TaskType.IDLE;
     private float taskProgress = 0f;
     private int jobId = -1;
+    private Recipe activeRecipe;
 
     public Colonist(String name, float startX, float startY) {
         this.name = name;
@@ -123,12 +126,40 @@ public class Colonist {
         this.currentTask = TaskType.HARVEST;
         this.taskTarget.set(x, y);
         this.taskProgress = 0f;
+        this.activeRecipe = null;
+    }
+
+    public boolean updateCraftTask(float delta, WorldMap map, int tileSize) {
+        if (activeRecipe == null) {
+            return true;
+        }
+        temp.set(taskTarget).sub(position);
+        if (temp.len2() > 16f) {
+            temp.limit(85f * delta);
+            move(temp.x, temp.y, map, tileSize);
+            return false;
+        }
+        taskProgress += delta;
+        return taskProgress >= activeRecipe.getWorkTime();
+    }
+
+    public void assignCraftTask(int jobId, Recipe recipe, float x, float y) {
+        this.jobId = jobId;
+        this.currentTask = TaskType.CRAFT;
+        this.activeRecipe = recipe;
+        this.taskTarget.set(x, y);
+        this.taskProgress = 0f;
     }
 
     public void clearTask() {
         currentTask = TaskType.IDLE;
         jobId = -1;
         taskProgress = 0f;
+        activeRecipe = null;
+    }
+
+    public Recipe getActiveRecipe() {
+        return activeRecipe;
     }
 
     private void move(float dx, float dy, WorldMap map, int tileSize) {

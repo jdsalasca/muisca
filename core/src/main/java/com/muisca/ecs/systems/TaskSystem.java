@@ -8,6 +8,8 @@ import com.badlogic.ashley.core.Family;
 import com.badlogic.ashley.utils.ImmutableArray;
 import com.badlogic.gdx.math.Vector2;
 import com.muisca.colony.Colonist;
+import com.muisca.crafting.CraftingQueue;
+import com.muisca.crafting.CraftingQueue.CraftingJob;
 import com.muisca.ecs.components.ColonistComponent;
 import com.muisca.ecs.components.InputControlComponent;
 import com.muisca.ecs.components.TaskComponent;
@@ -16,13 +18,15 @@ import com.muisca.jobs.JobBoard;
 public class TaskSystem extends EntitySystem {
 
     private final JobBoard jobBoard;
+    private final CraftingQueue craftingQueue;
     private final ComponentMapper<ColonistComponent> colonistMapper = ComponentMapper.getFor(ColonistComponent.class);
     private final ComponentMapper<InputControlComponent> inputMapper = ComponentMapper.getFor(InputControlComponent.class);
     private ImmutableArray<Entity> entities;
     private final Vector2 temp = new Vector2();
 
-    public TaskSystem(JobBoard jobBoard) {
+    public TaskSystem(JobBoard jobBoard, CraftingQueue craftingQueue) {
         this.jobBoard = jobBoard;
+        this.craftingQueue = craftingQueue;
     }
 
     @Override
@@ -40,6 +44,12 @@ public class TaskSystem extends EntitySystem {
             }
             Colonist colonist = colonistMapper.get(entity).colonist;
             if (colonist.hasActiveTask()) {
+                continue;
+            }
+            CraftingJob craftJob = craftingQueue.reserveJob();
+            if (craftJob != null) {
+                colonist.assignCraftTask(craftJob.jobId, craftJob.recipe,
+                        craftJob.workstation.x, craftJob.workstation.y);
                 continue;
             }
             int jobId = jobBoard.reserveSite();

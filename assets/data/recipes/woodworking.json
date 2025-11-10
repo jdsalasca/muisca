@@ -1,0 +1,18 @@
+{
+  "recipes": [
+    {
+      "id": "plank_bundle",
+      "name": "Tablones (x2)",
+      "workTime": 1.6,
+      "inputs": { "raw_wood": 1 },
+      "outputs": { "plank": 2 }
+    },
+    {
+      "id": "camp_bed",
+      "name": "Cama de campaña",
+      "workTime": 2.6,
+      "inputs": { "plank": 4 },
+      "outputs": { "camp_bed": 1 }
+    }
+  ]
+}
