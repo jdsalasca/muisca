@@ -25,6 +25,10 @@ public class Inventory {
         }
     }
 
+    public int getAmount(String itemId) {
+        return items.get(itemId, 0);
+    }
+
     public boolean has(String itemId, int amount) {
         return items.get(itemId, 0) >= amount;
     }

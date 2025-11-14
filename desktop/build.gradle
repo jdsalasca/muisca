@@ -7,6 +7,13 @@ dependencies {
     implementation(project(":core"))
     implementation("com.badlogicgames.gdx:gdx-backend-lwjgl3:${rootProject.ext.gdxVersion}")
     runtimeOnly("com.badlogicgames.gdx:gdx-platform:${rootProject.ext.gdxVersion}:natives-desktop")
+
+    // ANGLE/GLES/EGL support for Windows when using GLES emulation
+    // LWJGL version is pulled transitively by gdx-backend-lwjgl3 (currently 3.3.3),
+    // we add matching modules explicitly to enable EGL + OpenGLES + ANGLE.
+    implementation("org.lwjgl:lwjgl-egl:3.3.3")
+    implementation("org.lwjgl:lwjgl-opengles:3.3.3")
+    runtimeOnly("org.lwjgl:lwjgl-opengles:3.3.3:natives-windows")
 }
 
 application {
@@ -23,5 +30,16 @@ tasks.named("run", JavaExec).configure {
     String autoQuit = System.getProperty("muisca.autoQuitSeconds")
     if (autoQuit != null && !autoQuit.isBlank()) {
         systemProperty("muisca.autoQuitSeconds", autoQuit)
+    }
+    // Propagate any custom Muisca system properties passed to Gradle (e.g. -Dmuisca.angle=true)
+    // into the application process so DesktopLauncher/MuiscaGame can consume them.
+    System.properties.each { k, v ->
+        def key = k?.toString()
+        if (key != null && key.startsWith("muisca.")) {
+            def value = v?.toString()
+            if (value != null) {
+                systemProperty(key, value)
+            }
+        }
     }
 }

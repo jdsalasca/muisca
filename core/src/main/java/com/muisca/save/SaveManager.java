@@ -8,6 +8,8 @@ import com.badlogic.gdx.utils.Json;
 import com.badlogic.gdx.utils.ObjectFloatMap;
 import com.badlogic.gdx.utils.ObjectIntMap;
 import com.badlogic.gdx.utils.ObjectMap;
+import com.muisca.economy.FarmPlot;
+import com.muisca.economy.FarmPlotManager;
 import com.muisca.inventory.Inventory;
 import com.muisca.jobs.JobBoard;
 import com.muisca.jobs.JobBoard.HarvestSite;
@@ -31,7 +33,7 @@ public class SaveManager {
     }
 
     public void write(Inventory inventory, StructureManager structures, JobBoard jobBoard,
-                      ReputationTracker reputation, DecisionState decisionState,
+                      FarmPlotManager farmPlots, ReputationTracker reputation, DecisionState decisionState,
                       CombatSnapshot combatSnapshot) {
         SaveData data = new SaveData();
         ObjectIntMap<String> invSnapshot = inventory.snapshot();
@@ -59,6 +61,18 @@ public class SaveManager {
             saveSite.regrow = site.regrowTimer;
             saveSite.delay = site.regrowDelay;
             data.harvestSites.add(saveSite);
+        }
+
+        for (FarmPlot plot : farmPlots.getPlots()) {
+            SaveData.SaveFarmPlot savePlot = new SaveData.SaveFarmPlot();
+            savePlot.id = plot.getId();
+            savePlot.x = plot.getPosition().x;
+            savePlot.y = plot.getPosition().y;
+            savePlot.state = plot.getState().name();
+            savePlot.cropId = plot.getCropId();
+            savePlot.plannedCropId = plot.getPlannedCropId();
+            savePlot.growth = plot.getGrowth();
+            data.farmPlots.add(savePlot);
         }
 
         ObjectFloatMap<String> repSnapshot = reputation.snapshot();
@@ -90,7 +104,7 @@ public class SaveManager {
     }
 
     public CombatSnapshot read(Inventory inventory, StructureManager structures, JobBoard jobBoard,
-                               ReputationTracker reputation, DecisionState decisionState) {
+                               FarmPlotManager farmPlots, ReputationTracker reputation, DecisionState decisionState) {
         if (!saveFile.exists()) {
             return null;
         }
@@ -120,6 +134,18 @@ public class SaveManager {
             jobBoard.replaceSites(restoredSites);
         }
 
+        farmPlots.clear();
+        if (data.farmPlots.size > 0) {
+            for (SaveData.SaveFarmPlot savePlot : data.farmPlots) {
+                FarmPlot plot = new FarmPlot(savePlot.id, savePlot.x, savePlot.y);
+                plot.setState(parseState(savePlot.state));
+                plot.setCropId(savePlot.cropId);
+                plot.setPlannedCropId(savePlot.plannedCropId);
+                plot.setGrowth(savePlot.growth);
+                farmPlots.addRestoredPlot(plot);
+            }
+        }
+
         ObjectFloatMap<String> rep = new ObjectFloatMap<>();
         for (SaveData.SaveReputation entry : data.reputation) {
             rep.put(entry.faction, entry.value);
@@ -140,6 +166,17 @@ public class SaveManager {
             snapshot.enemies.add(copyEnemy(enemy));
         }
         return snapshot;
+    }
+
+    private FarmPlot.State parseState(String value) {
+        if (value == null) {
+            return FarmPlot.State.FALLOW;
+        }
+        try {
+            return FarmPlot.State.valueOf(value);
+        } catch (IllegalArgumentException ex) {
+            return FarmPlot.State.FALLOW;
+        }
     }
 
     private SaveData.SaveColonist copyColonist(SaveData.SaveColonist source) {

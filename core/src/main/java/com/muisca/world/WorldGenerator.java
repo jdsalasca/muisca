@@ -37,7 +37,16 @@ public class WorldGenerator {
                 elevation += landMask * 0.35f - 0.12f;
                 elevation = normalize(elevation);
                 humidity = normalize(humidity);
-                tiles[x][y] = TileType.fromSample(elevation, humidity);
+                TileType type = TileType.fromSample(elevation, humidity);
+                if (!type.isWater()) {
+                    float valleyNoise = fbm(x - 512, y + 1024, 0.018f, 3, 0.55f);
+                    float eastMask = MathUtils.clamp(((float) x / width) - 0.4f, 0f, 1f);
+                    float combined = valleyNoise + eastMask * 0.5f;
+                    if (combined > 0.75f && elevation < 0.85f) {
+                        type = TileType.VALLE_NUBLADO;
+                    }
+                }
+                tiles[x][y] = type;
             }
         }
         return new WorldMap(width, height, chunkSize, tiles);

@@ -11,19 +11,18 @@
 | 0.0.4 | Inventario, recetas, estructuras | ✅ |
 | 0.0.5 | Decisiones, reputación, guardado | ✅ |
 | 0.0.6 | **Combate + magia** | ✅ |
-| 0.0.7 | Economía/cultivos + bioma 2 | 🔜 |
+| 0.0.7 | Economía/cultivos + bioma 2 | ✅ |
 | 0.0.8 | Eventos + audio reactivo | 🔜 |
 | 0.0.9 | Facciones/guerras | 🔜 |
 | 0.0.10 | UX/accesibilidad | 🔜 |
 | 0.0.11 | Optimización + modding | 🔜 |
 
-## 2. Sprint activo – v0.0.6 Combate & Magia
+## 2. Sprint activo – v0.0.7 Economía & Cultivos
 Marca cada casilla cuando finalices la tarea (no antes) y enlaza el commit.
-- [x] Componentes de stats/talentos (VIT/STM/ATK/DEF/RES) y HUD asociado. *(Codex 2025-11-12 – cambios en HEAD, commit pendiente)* 
-- [x] IA de tres enemigos + mini-jefe (gestiona stamina/magia del jugador). *(Codex 2025-11-12)* 
-- [x] Escuelas Ceniza/Juramento: hechizos, estados (quemado/vínculo) y costos. *(Codex 2025-11-12)* 
-- [x] Telemetría de daño (overlay + logging) para balance. *(Codex 2025-11-12)* 
-- [x] Pruebas o validadores para cálculos de daño/resistencias. *(Codex 2025-11-12)* 
+- [x] Sistema de cultivos data-driven (plots, estaciones ligeras, guardado). *(Codex 2025-11-16 – cambios en HEAD, commit pendiente)* 
+- [x] Comercio dinámico con reputación y escasez + HUD/telemetría básica. *(Codex 2025-11-16 – cambios en HEAD, commit pendiente)* 
+- [x] Segundo bioma jugable en worldgen (tiles, recursos, balance de rendimiento). *(Codex 2025-11-16 – cambios en HEAD, commit pendiente)* 
+- [x] Docs/README/CHANGELOG alineados al sprint económico. *(Codex 2025-11-16 – cambios en HEAD, commit pendiente)* 
 
 ## 3. Flujo de trabajo para agentes
 1. **Anuncia tu trabajo**: al empezar, añade tu nombre en esta sección describiendo qué casillas del sprint abordarás.
@@ -69,6 +68,23 @@ Marca cada casilla cuando finalices la tarea (no antes) y enlaza el commit.
 **Sesión 2025-11-15 – Codex (GPT-5)**  
 - Añadidos ancianos (`elders.json`), rutinas sociales (`TownLifeSystem`) y aura que alimenta el ecosistema.  
 - Nuevo campo de flora regenerativa conectado al JobBoard; se implementó el overlay de rendimiento (`F2`) y culling para tiles/overlays.
+
+**Sesión 2025-11-16 – Codex (GPT-5)**  
+- Arranque sprint 0.0.7: cultivos data-driven, bioma adicional y comercio reputacional sin tocar el pipeline gráfico actual.  
+- Enfoque: `CropLibrary` + `FarmPlotManager`, balance de precios dinámicos y overlay de economía para diagnóstico.  
+Plan de commits 0.0.7 (borrador):  
+1. Datos/libs (`crops.json`, economía base) y wiring de guardado.  
+2. Sistemas ECS de agricultura + integración con colonos/telemetría.  
+3. Ajustes de worldgen/bioma y HUD/Docs.
+
+**Sesión 2025-11-17 – Codex (GPT-5)**  
+- Diagnóstico de pantalla negra reportada en desktop (`SpriteBatch` fallback automático + flags `-ForceShapes`/`-UseAngle` en run-desktop.ps1, README actualizado).  
+- Telemetría agrícola (`farm_status` en `telemetry/systems.csv`) y métricas reutilizables en `FarmPlotManager` para HUD/diagnóstico.
+
+**Hand-off Codex – 2025-11-17**  
+- Re-testear `desktop:run` en Windows con/ sin `-UseAngle` para confirmar que el fallback shapes evita la pantalla negra reportada.  
+- Siguiente paso sprint 0.0.7: concluir integración con trueques/comercio y exponer overlay económico adicional (HUD ya muestra resumen simple).  
+- Considerar persistir la estación actual (`SeasonClock`) en el guardado cuando se requiera sesiones prolongadas.
 
 ## 4. Estructura del proyecto
 - `core/`: gameplay (ECS, mundo, colonos, crafting, decisiones, guardado).

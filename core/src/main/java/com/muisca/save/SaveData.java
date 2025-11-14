@@ -6,6 +6,7 @@ public class SaveData {
     public Array<SaveItem> inventory = new Array<>();
     public Array<SaveStructure> structures = new Array<>();
     public Array<SaveSite> harvestSites = new Array<>();
+    public Array<SaveFarmPlot> farmPlots = new Array<>();
     public Array<SaveReputation> reputation = new Array<>();
     public Array<SaveFlag> flags = new Array<>();
     public Array<SaveColonist> colonists = new Array<>();
@@ -20,6 +21,16 @@ public class SaveData {
         public String blueprintId;
         public float x;
         public float y;
+    }
+
+    public static class SaveFarmPlot {
+        public int id;
+        public float x;
+        public float y;
+        public String state;
+        public String cropId;
+        public String plannedCropId;
+        public float growth;
     }
 
     public static class SaveSite {

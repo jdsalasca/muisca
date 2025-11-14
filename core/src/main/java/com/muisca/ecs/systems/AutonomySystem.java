@@ -12,6 +12,7 @@ import com.muisca.ecs.components.ColonistComponent;
 import com.muisca.ecs.components.InputControlComponent;
 import com.muisca.ecs.components.StatusComponent;
 import com.muisca.ecs.components.StatsComponent;
+import com.muisca.economy.FarmPlotManager;
 import com.muisca.inventory.Inventory;
 import com.muisca.jobs.JobBoard;
 import com.muisca.world.WorldMap;
@@ -27,15 +28,18 @@ public class AutonomySystem extends IteratingSystem {
     private final JobBoard jobBoard;
     private final CraftingQueue craftingQueue;
     private final Inventory inventory;
+    private final FarmPlotManager farmPlotManager;
 
     public AutonomySystem(WorldMap worldMap, int tileSize, JobBoard jobBoard,
-                          CraftingQueue craftingQueue, Inventory inventory) {
+                          CraftingQueue craftingQueue, Inventory inventory,
+                          FarmPlotManager farmPlotManager) {
         super(Family.all(ColonistComponent.class, AutonomyComponent.class).get());
         this.worldMap = worldMap;
         this.tileSize = tileSize;
         this.jobBoard = jobBoard;
         this.craftingQueue = craftingQueue;
         this.inventory = inventory;
+        this.farmPlotManager = farmPlotManager;
     }
 
     @Override
@@ -70,6 +74,18 @@ public class AutonomySystem extends IteratingSystem {
             boolean finished = colonist.updateCraftTask(scaledDelta, worldMap, tileSize);
             if (finished) {
                 craftingQueue.completeJob(colonist.getJobId());
+                colonist.clearTask();
+            }
+        } else if (colonist.getCurrentTask() == TaskType.FARM_PLANT) {
+            boolean finished = colonist.updateFarmTask(scaledDelta, worldMap, tileSize);
+            if (finished) {
+                farmPlotManager.completePlant(colonist.getJobId());
+                colonist.clearTask();
+            }
+        } else if (colonist.getCurrentTask() == TaskType.FARM_HARVEST) {
+            boolean finished = colonist.updateFarmTask(scaledDelta, worldMap, tileSize);
+            if (finished) {
+                farmPlotManager.completeHarvest(colonist.getJobId(), inventory);
                 colonist.clearTask();
             }
         }

@@ -70,6 +70,12 @@ import com.muisca.ecs.systems.InputMovementSystem;
 import com.muisca.ecs.systems.PlayerCombatSystem;
 import com.muisca.ecs.systems.StatusSystem;
 import com.muisca.ecs.systems.TaskSystem;
+import com.muisca.economy.AgricultureSystem;
+import com.muisca.economy.CropLibrary;
+import com.muisca.economy.FarmPlot;
+import com.muisca.economy.FarmPlotManager;
+import com.muisca.economy.MarketPriceTracker;
+import com.muisca.economy.Season;
 import com.muisca.inventory.Inventory;
 import com.muisca.jobs.JobBoard;
 import com.muisca.jobs.JobBoard.HarvestSite;
@@ -135,6 +141,11 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
 
     private final JobBoard jobBoard;
     private final Inventory inventory = new Inventory();
+    private final CropLibrary cropLibrary;
+    private final FarmPlotManager farmPlotManager;
+    private final FarmPlotManager.FarmMetrics farmMetrics = new FarmPlotManager.FarmMetrics();
+    private final AgricultureSystem agricultureSystem;
+    private final MarketPriceTracker marketPriceTracker;
     private final RecipeBook recipeBook;
     private final CraftingQueue craftingQueue;
     private final StructureLibrary structureLibrary;
@@ -154,6 +165,7 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
     private final ElderAura elderAura = new ElderAura();
     private final DayCycle dayCycle = new DayCycle();
     private final Vector2 townPlaza;
+    private final Vector2 farmAnchor;
     private int eldersAssigned = 0;
     private final Color tempColor = new Color();
 
@@ -169,6 +181,7 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
     private final Array<Entity> enemyEntities = new Array<>();
     private final Texture enemyTexture;
     private boolean showPerfOverlay = false;
+    private boolean showFarmOverlay = true;
     // Overlay de diagnóstico para visualizar algo aunque falle el render de mundo
     private boolean showFallbackOverlay = true;
     private int renderFrames = 0;
@@ -178,6 +191,7 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
     private boolean showActorBoxes = false;          // F6: pinta cajas de actores
     private boolean disableBatch = false;            // F7: deshabilita SpriteBatch para aislar problemas
     private boolean batchAlive = true;               // se pone en false si begin/end arroja excepción
+    private boolean shapeSafeModeForced = false;
     // Simple weather and lighting
     private boolean isRaining = false;
     private float rainIntensity = 0.7f; // 0..1
@@ -186,6 +200,7 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
     // References to systems that need environment modifiers
     private CombatResourceSystem combatResourceSystem;
     private EnvironmentRegrowthSystem environmentRegrowthSystem;
+    private float farmTelemetryTimer = 0f;
 
     // Estado de arranque y diagnóstico
     private boolean initOk = true;
@@ -198,6 +213,18 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         this.camera = new OrthographicCamera(1280, 720);
         this.font = new BitmapFont();
         this.shapeRenderer = new ShapeRenderer();
+        // Permitir arrancar en modo "solo shapes" para diagnosticar pantallas negras
+        // Se activa con -Dmuisca.forceShapes=true (o -Dmuisca.startShapes=true) en tiempo de ejecución
+        try {
+            String forceShapesProp = System.getProperty("muisca.forceShapes", System.getProperty("muisca.startShapes"));
+            if (forceShapesProp != null && forceShapesProp.equalsIgnoreCase("true")) {
+                disableBatch = true;
+                showWorldShapeOverlay = true; // dibuja tiles con ShapeRenderer para que se vea algo
+                Gdx.app.log("Render", "Startup shape-only mode enabled (muisca.forceShapes=true)");
+            }
+        } catch (Throwable t) {
+            // No bloquear el arranque si la propiedad no existe
+        }
         // Log de entorno gráfico para diagnósticos (GL y backbuffer)
         try {
             String glInfo = "GLVersion=" + Gdx.graphics.getGLVersion().getDebugVersionString()
@@ -205,6 +232,27 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
                     + " | BackBuffer=" + Gdx.graphics.getBackBufferWidth() + "x" + Gdx.graphics.getBackBufferHeight()
                     + " | Continuous=" + Gdx.graphics.isContinuousRendering();
             Gdx.app.log("Graphics", glInfo);
+
+            // Detalles del driver y del contexto GL
+            String vendor = null;
+            String renderer = null;
+            String version = null;
+            String glsl = null;
+            try {
+                vendor = Gdx.gl.glGetString(GL20.GL_VENDOR);
+                renderer = Gdx.gl.glGetString(GL20.GL_RENDERER);
+                version = Gdx.gl.glGetString(GL20.GL_VERSION);
+                glsl = Gdx.gl.glGetString(GL20.GL_SHADING_LANGUAGE_VERSION);
+            } catch (Throwable t) {
+                // Algunos backends pueden no soportar todas las consultas
+                Gdx.app.log("Graphics", "glGetString not fully available: " + t.getMessage());
+            }
+
+            com.badlogic.gdx.Graphics.BufferFormat fmt = Gdx.graphics.getBufferFormat();
+            String fmtInfo = fmt.toString();
+            Gdx.app.log("Graphics", "GL_VENDOR=" + vendor + " | GL_RENDERER=" + renderer
+                    + " | GL_VERSION=" + version + " | GLSL=" + glsl);
+            Gdx.app.log("Graphics", "BackBufferFormat: " + fmtInfo);
         } catch (Exception ignore) {
             // No interrumpir la carga si el entorno no soporta alguna consulta
         }
@@ -240,6 +288,7 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         }
         this.elderLibrary = eldersTmp;
         this.townPlaza = new Vector2(centerX + 32f, centerY - 48f);
+        this.farmAnchor = new Vector2(centerX + 176f, centerY - 96f);
 
         // Carga robusta de spells
         SpellLibrary spellsTmp;
@@ -264,6 +313,20 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         }
         this.recipeBook = recipesTmp;
         this.craftingQueue = new CraftingQueue(recipeBook, inventory, craftStation);
+        CropLibrary cropsTmp;
+        try {
+            cropsTmp = CropLibrary.load(Gdx.files.internal("data/crops.json"));
+            Gdx.app.log("Startup", "Cultivos cargados correctamente");
+        } catch (Exception ex) {
+            recordInitError("data/crops.json", ex);
+            cropsTmp = new CropLibrary();
+        }
+        this.cropLibrary = cropsTmp;
+        this.farmPlotManager = new FarmPlotManager(cropLibrary);
+        this.farmPlotManager.spawnDefaultPlots(farmAnchor, 6, 72f);
+        this.agricultureSystem = new AgricultureSystem(farmPlotManager);
+        this.agricultureSystem.setSeasonDuration(95f);
+        this.marketPriceTracker = initMarketTracker();
         // Carga robusta de estructuras
         StructureLibrary structuresTmp;
         try {
@@ -302,8 +365,9 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
 
         this.engine = new Engine();
         engine.addSystem(new InputMovementSystem(worldMap, TILE_SIZE));
-        engine.addSystem(new AutonomySystem(worldMap, TILE_SIZE, jobBoard, craftingQueue, inventory));
-        engine.addSystem(new TaskSystem(jobBoard, craftingQueue));
+        engine.addSystem(agricultureSystem);
+        engine.addSystem(new AutonomySystem(worldMap, TILE_SIZE, jobBoard, craftingQueue, inventory, farmPlotManager));
+        engine.addSystem(new TaskSystem(jobBoard, craftingQueue, farmPlotManager));
         combatResourceSystem = new CombatResourceSystem();
         engine.addSystem(combatResourceSystem);
         engine.addSystem(new PlayerCombatSystem(damageTelemetry));
@@ -322,9 +386,12 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
 
         resetEncounter();
 
-        CombatSnapshot snapshot = saveManager.read(inventory, structureManager, jobBoard, reputationTracker, decisionState);
+        CombatSnapshot snapshot = saveManager.read(inventory, structureManager, jobBoard, farmPlotManager, reputationTracker, decisionState);
         craftingQueue.clearJobs();
         applyCombatSnapshot(snapshot);
+        if (farmPlotManager.getPlots().size == 0) {
+            farmPlotManager.spawnDefaultPlots(farmAnchor, 6, 72f);
+        }
 
         // Carga robusta de música ambiente
         try {
@@ -672,10 +739,16 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         Color sky = getSkyColor();
         Gdx.gl.glClearColor(sky.r, sky.g, sky.b, 1f);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
+        Gdx.gl.glEnable(GL20.GL_BLEND);
+        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
 
         // Render seguro con SpriteBatch con gating y captura de errores
         batch.setProjectionMatrix(camera.combined);
         boolean willUseBatch = batchAlive && !disableBatch;
+        if (renderFrames == 0) {
+            Gdx.app.log("Render", "boot: batchAlive=" + batchAlive + 
+                    ", disableBatch=" + disableBatch + ", willUseBatch=" + willUseBatch);
+        }
         if (willUseBatch) {
             try {
                 batch.begin();
@@ -688,6 +761,7 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
                 batchAlive = false;
                 recordInitError("SpriteBatch-render", ex);
                 Gdx.app.error("Render", "SpriteBatch falló, activando modo solo shapes", ex);
+                forceShapeSafeMode("SpriteBatch deshabilitado. Usa F7 para reintentar o corre con -Dmuisca.forceShapes=true.");
             } finally {
                 try {
                     if (batch.isDrawing()) {
@@ -696,6 +770,7 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
                 } catch (Exception endEx) {
                     batchAlive = false;
                     recordInitError("SpriteBatch-end", endEx);
+                    forceShapeSafeMode("SpriteBatch end falló. Se forzó modo shapes.");
                 }
             }
         }
@@ -712,6 +787,7 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         if (showActorBoxes) {
             drawActorBoxesOverlay();
         }
+        drawFarmOverlay();
         drawOverlays();
 
         // Heartbeat de render cada ~1s
@@ -729,6 +805,21 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
             }
             renderSecondsAccum = 0f;
         }
+    }
+
+    private void forceShapeSafeMode(String reason) {
+        if (shapeSafeModeForced) {
+            return;
+        }
+        shapeSafeModeForced = true;
+        disableBatch = true;
+        showWorldShapeOverlay = true;
+        showFallbackOverlay = true;
+        showActorBoxes = true;
+        if (reason != null && !reason.isEmpty()) {
+            showStatus(reason);
+        }
+        Gdx.app.log("Render", "Safe mode shapes activo. disableBatch=" + disableBatch);
     }
 
     private void updateGame(float delta) {
@@ -753,6 +844,13 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         }
         if (systemTelemetry != null) {
             systemTelemetry.logRegenScale(dayIntensity, isRaining, rainIntensity, regenScale, weatherRegrowMultiplier);
+            farmTelemetryTimer += delta;
+            if (farmTelemetryTimer >= 3f) {
+                farmTelemetryTimer = 0f;
+                FarmPlotManager.FarmMetrics metrics = farmPlotManager.captureMetrics(farmMetrics);
+                Season season = agricultureSystem.getCurrentSeason();
+                systemTelemetry.logFarmStatus(season, metrics.fallow, metrics.growing, metrics.ready, metrics.averageGrowth);
+            }
         }
         engine.update(delta);
         damageTelemetry.update(delta);
@@ -787,6 +885,11 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
             Gdx.app.log("Input", "F7 -> disableBatch=" + disableBatch + ", batchAlive=" + batchAlive);
             showStatus(disableBatch ? "Modo solo shapes" : "SpriteBatch reactivado");
         }
+        if (Gdx.input.isKeyJustPressed(Input.Keys.F8)) {
+            showFarmOverlay = !showFarmOverlay;
+            Gdx.app.log("Input", "F8 -> showFarmOverlay=" + showFarmOverlay);
+            showStatus(showFarmOverlay ? "Overlay agrícola activo" : "Overlay agrícola oculto");
+        }
         if (Gdx.input.isKeyJustPressed(Input.Keys.F4)) {
             showFallbackOverlay = !showFallbackOverlay;
             Gdx.app.log("Input", "F4 -> showFallbackOverlay=" + showFallbackOverlay);
@@ -808,6 +911,8 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
     // Dibuja los tiles visibles con ShapeRenderer, usando el mismo cálculo de color del mundo
     private void drawWorldShapeOverlay() {
         try {
+            Gdx.gl.glEnable(GL20.GL_BLEND);
+            Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
             float halfW = camera.viewportWidth / 2f;
             float halfH = camera.viewportHeight / 2f;
             float camLeft = camera.position.x - halfW;
@@ -841,6 +946,8 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
     // Pinta cajas y cruces sobre colonos y enemigos para validar posiciones sin texturas
     private void drawActorBoxesOverlay() {
         try {
+            Gdx.gl.glEnable(GL20.GL_BLEND);
+            Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
             shapeRenderer.setProjectionMatrix(camera.combined);
             shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
             // Colonists
@@ -870,6 +977,44 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         }
     }
 
+    private void drawFarmOverlay() {
+        if (!showFarmOverlay) {
+            return;
+        }
+        try {
+            Gdx.gl.glEnable(GL20.GL_BLEND);
+            Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
+            shapeRenderer.setProjectionMatrix(camera.combined);
+            shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
+            Array<FarmPlot> plots = farmPlotManager.getPlots();
+            for (FarmPlot plot : plots) {
+                switch (plot.getState()) {
+                    case READY:
+                        tempColor.set(0.95f, 0.82f, 0.25f, 1f);
+                        break;
+                    case GROWING:
+                        tempColor.set(0.3f, 0.75f, 0.4f, 1f);
+                        break;
+                    case FALLOW:
+                    default:
+                        tempColor.set(0.55f, 0.4f, 0.22f, 1f);
+                        break;
+                }
+                shapeRenderer.setColor(tempColor);
+                float size = 36f;
+                float x = plot.getPosition().x - size / 2f;
+                float y = plot.getPosition().y - size / 2f;
+                if (!isOnScreen(plot.getPosition().x, plot.getPosition().y, size)) {
+                    continue;
+                }
+                shapeRenderer.rect(x, y, size, size);
+            }
+            shapeRenderer.end();
+        } catch (Exception ex) {
+            Gdx.app.error("Overlay", "drawFarmOverlay error", ex);
+        }
+    }
+
     private void handleActions() {
         if (Gdx.input.isKeyJustPressed(Input.Keys.H)) {
             toggleDecisionOverlay();
@@ -895,6 +1040,16 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
             placeStructure("storage_crate");
             Gdx.app.log("Input", "N -> place storage_crate");
         }
+    }
+
+    private MarketPriceTracker initMarketTracker() {
+        MarketPriceTracker tracker = new MarketPriceTracker();
+        tracker.registerGood("raw_wood", 4f, 24, 0.6f, 0.25f);
+        tracker.registerGood("plank", 9f, 16, 0.55f, 0.25f);
+        tracker.registerGood("maize", 6f, 20, 0.5f, 0.18f);
+        tracker.registerGood("quinoa", 7f, 18, 0.5f, 0.2f);
+        tracker.registerGood("coca_leaf", 10f, 10, 0.65f, 0.3f);
+        return tracker;
     }
 
     private void queueRecipe(String recipeId) {
@@ -926,13 +1081,13 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
 
     private void handleSaveLoadInput() {
         if (Gdx.input.isKeyJustPressed(Input.Keys.F5)) {
-            saveManager.write(inventory, structureManager, jobBoard, reputationTracker, decisionState,
+            saveManager.write(inventory, structureManager, jobBoard, farmPlotManager, reputationTracker, decisionState,
                     captureCombatSnapshot());
             showStatus("Partida guardada.");
             Gdx.app.log("Input", "F5 -> Guardar partida");
         }
         if (Gdx.input.isKeyJustPressed(Input.Keys.F9)) {
-            CombatSnapshot snapshot = saveManager.read(inventory, structureManager, jobBoard, reputationTracker, decisionState);
+            CombatSnapshot snapshot = saveManager.read(inventory, structureManager, jobBoard, farmPlotManager, reputationTracker, decisionState);
             craftingQueue.clearJobs();
             for (Entity entity : colonistEntities) {
                 colonistMapper.get(entity).colonist.clearTask();
@@ -940,6 +1095,9 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
             decisionVisible = false;
             selectColonist(controlledColonistIndex);
             applyCombatSnapshot(snapshot);
+            if (farmPlotManager.getPlots().size == 0) {
+                farmPlotManager.spawnDefaultPlots(farmAnchor, 6, 72f);
+            }
             showStatus("Partida cargada.");
             Gdx.app.log("Input", "F9 -> Cargar partida");
         }
@@ -1101,7 +1259,7 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
 
     private void drawHud(float delta) {
         StringBuilder builder = new StringBuilder();
-        builder.append("Muisca v0.0.6 | Tab colonos | WASD mover | Shift correr | Q/E hechizos | 1=Tablones | 2=Cama | B/N planos | C grilla | F1 debug | F2 perf | F3 clima | F4 fallback | F5 tiles shapes | F6 cajas actores | F7 solo shapes\n");
+        builder.append("Muisca v0.0.7 | Tab colonos | WASD mover | Shift correr | Q/E hechizos | 1=Tablones | 2=Cama | B/N planos | C grilla | F1 debug | F2 perf | F3 clima | F4 fallback | F5 tiles shapes | F6 cajas actores | F7 solo shapes | F8 agro overlay\n");
         builder.append("Inventario: ").append(inventory.summarize()).append('\n');
         builder.append("Pedidos carpintería: ");
         boolean first = true;
@@ -1116,6 +1274,10 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         builder.append('\n');
         builder.append("Sitios de tala vivos: ").append(jobBoard.getRemainingSites())
                 .append(" | Reservas activas: ").append(jobBoard.getActiveReservations());
+        builder.append('\n');
+        appendFarmStatus(builder);
+        builder.append('\n');
+        builder.append("Mercado Liga: ").append(marketPriceTracker.summarize(inventory, reputationTracker, "liga"));
         font.draw(batch, builder, camera.position.x - 620, camera.position.y + 340);
 
         if (statusTimer > 0f) {
@@ -1202,7 +1364,20 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         }
     }
 
+    private void appendFarmStatus(StringBuilder builder) {
+        FarmPlotManager.FarmMetrics metrics = farmPlotManager.captureMetrics(farmMetrics);
+        Season season = agricultureSystem.getCurrentSeason();
+        builder.append("Agricultura [").append(season.name()).append(' ')
+                .append(MathUtils.round(agricultureSystem.getSeasonFraction() * 100f)).append("%]")
+                .append(" | Barbecho: ").append(metrics.fallow)
+                .append(" | Creciendo: ").append(metrics.growing)
+                .append(" | Listos: ").append(metrics.ready)
+                .append(" | Prog promedio: ").append(MathUtils.round(metrics.averageGrowth * 100f)).append('%');
+    }
+
     private void drawOverlays() {
+        Gdx.gl.glEnable(GL20.GL_BLEND);
+        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
         shapeRenderer.setProjectionMatrix(camera.combined);
         if (showChunks) {
             shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
@@ -1339,6 +1514,8 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
     // Dibujo de emergencia para diagnosticar pantalla negra: un rectángulo y una cruz en el centro
     private void drawFallbackOverlay() {
         try {
+            Gdx.gl.glEnable(GL20.GL_BLEND);
+            Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
             float cx = worldCenterX;
             float cy = worldCenterY;
             shapeRenderer.setProjectionMatrix(camera.combined);
@@ -1355,6 +1532,12 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
             // No interferir con el render normal; solo es diagnóstico
             Gdx.app.log("Fallback", "Error dibujando overlay: " + e.getMessage());
         }
+    }
+
+    @Override
+    public void resize(int width, int height) {
+        camera.setToOrtho(false, width, height);
+        camera.update();
     }
 
     private boolean isOnScreen(float worldX, float worldY, float margin) {

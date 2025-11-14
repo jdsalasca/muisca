@@ -7,6 +7,7 @@ import com.badlogic.gdx.graphics.Color;
  */
 public enum TileType {
     BOSQUE_TEMPLADO("Bosque templado", new Color(0.32f, 0.46f, 0.28f, 1f)),
+    VALLE_NUBLADO("Valle nublado", new Color(0.28f, 0.5f, 0.42f, 1f)),
     PARAMO_SOLAR("Páramo solar", new Color(0.62f, 0.58f, 0.38f, 1f)),
     ESTEPA_CENICIENTA("Estepa cenicienta", new Color(0.49f, 0.42f, 0.31f, 1f)),
     PANTANO_AZUFRADO("Pantano azufrado", new Color(0.21f, 0.32f, 0.29f, 1f)),
@@ -49,6 +50,9 @@ public enum TileType {
         }
         if (humidity > 0.65f && elevation < 0.45f) {
             return PANTANO_AZUFRADO;
+        }
+        if (humidity > 0.7f && elevation >= 0.35f && elevation <= 0.75f) {
+            return VALLE_NUBLADO;
         }
         if (elevation > 0.8f) {
             return BOSQUE_HUESOS;

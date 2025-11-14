@@ -14,7 +14,9 @@ public class Colonist {
     public enum TaskType {
         IDLE,
         HARVEST,
-        CRAFT
+        CRAFT,
+        FARM_PLANT,
+        FARM_HARVEST
     }
 
     private final String name;
@@ -166,6 +168,18 @@ public class Colonist {
         this.activeRecipe = recipe;
         this.taskTarget.set(x, y);
         this.taskProgress = 0f;
+    }
+
+    public boolean updateFarmTask(float delta, WorldMap map, int tileSize) {
+        return updateHarvestTask(delta, map, tileSize);
+    }
+
+    public void assignFarmTask(int plotId, float x, float y, TaskType taskType) {
+        this.jobId = plotId;
+        this.currentTask = taskType;
+        this.taskTarget.set(x, y);
+        this.taskProgress = 0f;
+        this.activeRecipe = null;
     }
 
     public void clearTask() {

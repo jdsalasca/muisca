@@ -22,6 +22,12 @@ El objetivo es entregar builds cortas y tocables cada iteración, siempre con fo
 
 > Después de 0.0.11 se consolida **Alpha 0.1** (4 biomas, 30+ recetas, 10 cadenas narrativas) y se abre Beta 0.2 con focus QA/balance.
 
+### Estado 0.0.7
+- Cultivos (`assets/data/crops.json`) + `FarmPlotManager` generan parcelas automáticas cerca del poblado; colonos siembran/cosechan antes de talar.
+- `AgricultureSystem` introduce temporadas (templada/lluviosa/seca) y overlay `F8` para monitorear progreso/fases de cada parcela.
+- `MarketPriceTracker` modela precios por reputación/escasez y expone el resumen en HUD (referencia Liga); prepara el comercio de 0.0.8.
+- Worldgen suma el bioma **Valle Nublado** al noreste del mapa como segundo bloque jugable para expandir rutas agrícolas/comerciales.
+
 ## Principios obligatorios (respetar en cada sprint)
 
 - **ECS primero**: no hay lógica de gameplay en render. Componentes y sistemas deben residir en `core/src/main/java/com/muisca/ecs/**` (a crear en 0.0.3) y solo comunicarse mediante eventos/data.

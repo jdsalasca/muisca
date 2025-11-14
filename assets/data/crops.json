@@ -1,0 +1,25 @@
+{
+  "crops": [
+    {
+      "id": "maize_dorado",
+      "name": "Maiz dorado",
+      "growthSeconds": 85,
+      "outputs": { "maize": 3 },
+      "seasons": [ "templada", "lluviosa" ]
+    },
+    {
+      "id": "quinua_espiral",
+      "name": "Quinua espiral",
+      "growthSeconds": 110,
+      "outputs": { "quinoa": 2 },
+      "seasons": [ "templada", "seca" ]
+    },
+    {
+      "id": "coca_guardiana",
+      "name": "Coca guardiana",
+      "growthSeconds": 130,
+      "outputs": { "coca_leaf": 2 },
+      "seasons": [ "lluviosa" ]
+    }
+  ]
+}

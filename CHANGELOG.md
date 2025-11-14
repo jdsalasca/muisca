@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented here. The format loosely follows [Keep a Changelog](https://keepachangelog.com/) while the versioning scheme will track playable milestones.
 
+## [0.0.7] - 2025-11-16
+
+### Added
+- Agricultura data-driven: `assets/data/crops.json`, `CropLibrary` y `FarmPlotManager` generan parcelas alrededor del poblado; `AgricultureSystem` controla temporadas (templada/lluviosa/seca) y crecimiento.
+- Overlay agrícola (`F8`) y HUD actualizado con progreso promedio, parcelas listas y nueva cadena de atajos; colonos priorizan sembrar/cosechar antes de ir al JobBoard.
+- `MarketPriceTracker` aplica ajustes por reputación/escasez y expone un resumen en HUD para materias primas (`raw_wood`, `plank`, `maize`, `quinoa`, `coca_leaf`).
+- Guardado/carga ahora persiste las parcelas (`SaveData.SaveFarmPlot`) y restaura cultivos en curso.
+- Telemetría agrícola: `SystemTelemetry` registra `farm_status` (temporada, parcelas barbecho/creciendo/listas y progreso promedio) cada pocos segundos para balancear economía.
+
+### Changed
+- `TaskSystem` y `AutonomySystem` gestionan nuevos tipos de tareas (`FARM_PLANT`, `FARM_HARVEST`) y depositan las cosechas directamente en el inventario compartido.
+- `WorldGenerator` incorpora el bioma Valle Nublado con máscara procedural orientada al noreste para desbloquear el segundo piso jugable del roadmap 0.0.7.
+- README/roadmap/backlog reflejan el sprint económico (tabla de versiones, atajos, sección "Economía y agricultura").
+- Safe boot visual: `SettlementScreen` activa automáticamente el modo shapes si `SpriteBatch` falla y muestra instrucciones; `tools/run-desktop.ps1` incorpora `-ForceShapes` y `-UseAngle` para facilitar los fallbacks (ANGLE/ShapeRenderer).
+
 ## [0.0.6.1] - 2025-11-10
 
 ### Added

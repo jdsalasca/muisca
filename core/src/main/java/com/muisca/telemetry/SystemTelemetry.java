@@ -3,6 +3,7 @@ package com.muisca.telemetry;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.files.FileHandle;
 import com.badlogic.gdx.utils.TimeUtils;
+import com.muisca.economy.Season;
 import java.util.Locale;
 
 /**
@@ -19,6 +20,11 @@ public final class SystemTelemetry {
     private float lastRegenScale = 1f;
     private boolean lastRaining = false;
     private float lastRainIntensity = 0f;
+    private Season lastFarmSeason = null;
+    private int lastFarmFallow = -1;
+    private int lastFarmGrowing = -1;
+    private int lastFarmReady = -1;
+    private float lastFarmAvg = -1f;
 
     public SystemTelemetry(FileHandle logFile) {
         this.logFile = logFile;
@@ -73,6 +79,26 @@ public final class SystemTelemetry {
                 "day=%.2f, raining=%s, rain=%.2f, regenScale=%.3f, regrowX=%.2f",
                 dayIntensity, raining, rainIntensity, regenScale, regrowMultiplier);
         log("regen_env_update", details);
+    }
+
+    public void logFarmStatus(Season season, int fallow, int growing, int ready, float avgProgress) {
+        Season safeSeason = season == null ? Season.TEMPERATE : season;
+        if (safeSeason == lastFarmSeason
+                && fallow == lastFarmFallow
+                && growing == lastFarmGrowing
+                && ready == lastFarmReady
+                && Math.abs(avgProgress - lastFarmAvg) < 0.02f) {
+            return;
+        }
+        lastFarmSeason = safeSeason;
+        lastFarmFallow = fallow;
+        lastFarmGrowing = growing;
+        lastFarmReady = ready;
+        lastFarmAvg = avgProgress;
+        String details = String.format(Locale.US,
+                "season=%s, fallow=%d, growing=%d, ready=%d, avg=%.3f",
+                safeSeason.name(), fallow, growing, ready, avgProgress);
+        log("farm_status", details);
     }
 
     private String sanitize(String s) {

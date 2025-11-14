@@ -15,11 +15,15 @@ import com.muisca.ecs.components.InputControlComponent;
 import com.muisca.ecs.components.StatusComponent;
 import com.muisca.ecs.components.TaskComponent;
 import com.muisca.ecs.components.StatsComponent;
+import com.muisca.economy.FarmPlotManager;
+import com.muisca.economy.FarmPlotManager.FarmTask;
+import com.muisca.economy.FarmPlotManager.FarmTaskType;
 import com.muisca.jobs.JobBoard;
 
 public class TaskSystem extends EntitySystem {
 
     private final JobBoard jobBoard;
+    private final FarmPlotManager farmPlotManager;
     private final CraftingQueue craftingQueue;
     private final ComponentMapper<ColonistComponent> colonistMapper = ComponentMapper.getFor(ColonistComponent.class);
     private final ComponentMapper<InputControlComponent> inputMapper = ComponentMapper.getFor(InputControlComponent.class);
@@ -28,9 +32,10 @@ public class TaskSystem extends EntitySystem {
     private ImmutableArray<Entity> entities;
     private final Vector2 temp = new Vector2();
 
-    public TaskSystem(JobBoard jobBoard, CraftingQueue craftingQueue) {
+    public TaskSystem(JobBoard jobBoard, CraftingQueue craftingQueue, FarmPlotManager farmPlotManager) {
         this.jobBoard = jobBoard;
         this.craftingQueue = craftingQueue;
+        this.farmPlotManager = farmPlotManager;
     }
 
     @Override
@@ -62,6 +67,17 @@ public class TaskSystem extends EntitySystem {
             if (craftJob != null) {
                 colonist.assignCraftTask(craftJob.jobId, craftJob.recipe,
                         craftJob.workstation.x, craftJob.workstation.y);
+                continue;
+            }
+            FarmTask farmTask = farmPlotManager.reserveHarvestTask();
+            if (farmTask == null) {
+                farmTask = farmPlotManager.reservePlantingTask();
+            }
+            if (farmTask != null) {
+                Colonist.TaskType taskType = farmTask.type == FarmTaskType.HARVEST
+                        ? Colonist.TaskType.FARM_HARVEST
+                        : Colonist.TaskType.FARM_PLANT;
+                colonist.assignFarmTask(farmTask.plotId, farmTask.position.x, farmTask.position.y, taskType);
                 continue;
             }
             int jobId = jobBoard.reserveSite();
