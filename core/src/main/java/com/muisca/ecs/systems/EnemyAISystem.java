@@ -65,6 +65,13 @@ public class EnemyAISystem extends IteratingSystem {
         enemy.attackTimer = Math.max(0f, enemy.attackTimer - deltaTime);
         Entity target = findTarget(enemy);
         if (target == null) {
+            enemy.thinkTimer -= deltaTime;
+            if (enemy.thinkTimer <= 0f) {
+                enemy.thinkTimer = 2f + com.badlogic.gdx.math.MathUtils.random(0.5f, 2.5f);
+                temp.set(com.badlogic.gdx.math.MathUtils.random(-1f, 1f), com.badlogic.gdx.math.MathUtils.random(-1f, 1f)).nor();
+                enemy.velocity.set(temp).scl(enemy.archetype.movementSpeed * 0.5f * movementScalar);
+            }
+            enemy.position.add(enemy.velocity.x * deltaTime, enemy.velocity.y * deltaTime);
             return;
         }
         Vector2 targetPos = getPosition(target, temp2);

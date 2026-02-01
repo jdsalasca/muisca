@@ -104,8 +104,8 @@ import com.muisca.telemetry.InventoryTelemetry;
 public class SettlementScreen extends ScreenAdapter implements Disposable {
 
     private static final int TILE_SIZE = 32;
-    private static final int WORLD_WIDTH_TILES = 96;
-    private static final int WORLD_HEIGHT_TILES = 96;
+    private static final int WORLD_WIDTH_TILES = 160;
+    private static final int WORLD_HEIGHT_TILES = 160;
     private static final int CHUNK_SIZE = 16;
     private static final Color ENEMY_COLOR = new Color(0.9f, 0.35f, 0.35f, 0.95f);
     private static final Color ENEMY_DEFEATED_COLOR = new Color(0.35f, 0.35f, 0.35f, 0.7f);
@@ -123,6 +123,7 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
     private final WorldMap worldMap;
     private final Texture[] tileTextures;
     private final Texture colonistTexture;
+    private Texture colonistWalkTexture;
     private final float worldCenterX;
     private final float worldCenterY;
 
@@ -171,6 +172,8 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
 
     private Music ambientTrack;
     private final Vector2 inputDirection = new Vector2();
+    private final Vector2 clickTarget = new Vector2();
+    private boolean hasClickTarget = false;
     private float dayTimer = 0f;
     private boolean showChunks = true;
     private boolean showDebug = false;
@@ -180,12 +183,14 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
     private boolean decisionVisible = false;
     private final Array<Entity> enemyEntities = new Array<>();
     private final Texture enemyTexture;
+    private Texture treeTexture;
     private boolean showPerfOverlay = false;
     private boolean showFarmOverlay = true;
     // Overlay de diagnóstico para visualizar algo aunque falle el render de mundo
     private boolean showFallbackOverlay = true;
     private int renderFrames = 0;
     private float renderSecondsAccum = 0f;
+    private float colonistAnimTimer = 0f;
     // Nuevos flags de depuración gráfica y seguridad de render
     private boolean showWorldShapeOverlay = false;   // F5: pinta tiles con ShapeRenderer
     private boolean showActorBoxes = false;          // F6: pinta cajas de actores
@@ -197,15 +202,34 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
     private float rainIntensity = 0.7f; // 0..1
     private final Array<Vector2> rainDrops = new Array<>();
     private float rainSpawnAccumulator = 0f;
+    private final Array<Vector2> fireflies = new Array<>();
+    private float fireflySpawnAccumulator = 0f;
+    private final Array<Vector2> critters = new Array<>();
+    private static class Tree {
+        final Vector2 pos = new Vector2();
+        float health = 1f;
+    }
+    private final Array<Tree> trees = new Array<>();
     // References to systems that need environment modifiers
     private CombatResourceSystem combatResourceSystem;
     private EnvironmentRegrowthSystem environmentRegrowthSystem;
     private float farmTelemetryTimer = 0f;
+    private final Array<FloatingText> floatingTexts = new Array<>();
+    private final Vector2 rallyPoint = new Vector2();
+    private boolean hasRallyPoint = false;
 
     // Estado de arranque y diagnóstico
     private boolean initOk = true;
     private final Array<String> initErrors = new Array<>();
     private InputAdapter debugKeyLogger;
+
+    private static class FloatingText {
+        final Vector2 pos = new Vector2();
+        String text;
+        final Color color = new Color();
+        float ttl;
+        float vy;
+    }
 
     public SettlementScreen(MuiscaGame game) {
         this.game = game;
@@ -270,13 +294,17 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         this.worldMap = new WorldGenerator(WORLD_WIDTH_TILES, WORLD_HEIGHT_TILES, CHUNK_SIZE, 140_921L).generate();
         this.tileTextures = createTileTextures();
         this.colonistTexture = createColonistTexture();
+        this.colonistWalkTexture = createColonistWalkTexture();
         this.enemyTexture = createEnemyTexture();
+        this.treeTexture = createTreeTexture();
         float centerX = WORLD_WIDTH_TILES * TILE_SIZE / 2f;
         float centerY = WORLD_HEIGHT_TILES * TILE_SIZE / 2f;
         this.worldCenterX = centerX;
         this.worldCenterY = centerY;
         this.craftStation = new Vector2(centerX + 72f, centerY);
         this.floraField = new FloraField(WORLD_WIDTH_TILES, WORLD_HEIGHT_TILES);
+        scatterTrees();
+        spawnCritters();
         // Carga robusta de elders
         ElderLibrary eldersTmp;
         try {
@@ -416,7 +444,58 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
                 return false;
             }
         };
-        Gdx.input.setInputProcessor(new InputMultiplexer(debugKeyLogger));
+        InputAdapter mouseClickMover = new InputAdapter() {
+            @Override
+            public boolean touchDown(int screenX, int screenY, int pointer, int button) {
+                if (button == Input.Buttons.LEFT) {
+                    com.badlogic.gdx.math.Vector3 v = new com.badlogic.gdx.math.Vector3(screenX, screenY, 0f);
+                    camera.unproject(v);
+                    clickTarget.set(v.x, v.y);
+                    hasClickTarget = true;
+                    showStatus("Destino: " + MathUtils.floor(v.x) + "," + MathUtils.floor(v.y));
+                    return true;
+                }
+                return false;
+            }
+        };
+        InputAdapter rightClickRally = new InputAdapter() {
+            @Override
+            public boolean touchDown(int screenX, int screenY, int pointer, int button) {
+                if (button == Input.Buttons.RIGHT) {
+                    com.badlogic.gdx.math.Vector3 v = new com.badlogic.gdx.math.Vector3(screenX, screenY, 0f);
+                    camera.unproject(v);
+                    rallyPoint.set(v.x, v.y);
+                    hasRallyPoint = true;
+                    showStatus("Reunión: " + MathUtils.floor(v.x) + "," + MathUtils.floor(v.y));
+                    return true;
+                }
+                return false;
+            }
+        };
+        Gdx.input.setInputProcessor(new InputMultiplexer(debugKeyLogger, mouseClickMover, rightClickRally));
+
+        jobBoard.addListener(new JobBoard.Listener() {
+            @Override
+            public void onSiteHarvested(JobBoard.HarvestSite site) {
+                FloatingText ft = new FloatingText();
+                ft.pos.set(site.position.x, site.position.y + 10f);
+                ft.text = "+madera";
+                ft.color.set(0.9f, 0.85f, 0.25f, 1f);
+                ft.ttl = 1.8f;
+                ft.vy = 18f;
+                floatingTexts.add(ft);
+            }
+            @Override
+            public void onSiteRegrown(JobBoard.HarvestSite site) {
+                FloatingText ft = new FloatingText();
+                ft.pos.set(site.position.x, site.position.y + 10f);
+                ft.text = "rebrote";
+                ft.color.set(0.3f, 0.85f, 0.45f, 1f);
+                ft.ttl = 1.6f;
+                ft.vy = 14f;
+                floatingTexts.add(ft);
+            }
+        });
     }
 
     private void createColonist(String name, float x, float y, TalentId... talents) {
@@ -830,6 +909,7 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         dayTimer = (dayTimer + delta * 0.04f) % 1f;
         dayCycle.setFraction(dayTimer);
         updateWeather(delta);
+        updateCritters(delta);
         // Apply environment-driven gameplay modifiers (regen and flora regrowth)
         float dayIntensity = MathUtils.sin(dayTimer * MathUtils.PI2) * 0.5f + 0.5f; // 0 (midnight)..1 (noon)
         float rainPenalty = isRaining ? 0.20f * rainIntensity : 0f; // up to -20% regen
@@ -838,10 +918,11 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         if (combatResourceSystem != null) {
             combatResourceSystem.setRegenScale(regenScale);
         }
-        float weatherRegrowMultiplier = isRaining ? (1f + 0.6f * rainIntensity) : 1f; // up to +60% in heavy rain
+        float weatherRegrowMultiplier = isRaining ? (1f + 0.6f * rainIntensity) : 1f;
         if (environmentRegrowthSystem != null) {
             environmentRegrowthSystem.setWeatherRegrowMultiplier(weatherRegrowMultiplier);
         }
+        jobBoard.update(delta, weatherRegrowMultiplier);
         if (systemTelemetry != null) {
             systemTelemetry.logRegenScale(dayIntensity, isRaining, rainIntensity, regenScale, weatherRegrowMultiplier);
             farmTelemetryTimer += delta;
@@ -855,6 +936,8 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         engine.update(delta);
         damageTelemetry.update(delta);
         applyElderSpirit(delta);
+        updateFloatingTexts(delta);
+        colonistAnimTimer += delta;
         updateCamera();
         statusTimer = Math.max(0f, statusTimer - delta);
     }
@@ -905,6 +988,9 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         if (Gdx.input.isKeyJustPressed(Input.Keys.TAB)) {
             selectColonist((controlledColonistIndex + 1) % colonistEntities.size);
             Gdx.app.log("Input", "TAB -> controlledColonistIndex=" + controlledColonistIndex);
+        }
+        if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
+            hasRallyPoint = false;
         }
     }
 
@@ -972,6 +1058,12 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
                 shapeRenderer.line(p.x, p.y - 16f, p.x, p.y + 16f);
             }
             shapeRenderer.end();
+            if (hasRallyPoint && isOnScreen(rallyPoint.x, rallyPoint.y, 40f)) {
+                shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+                shapeRenderer.setColor(0.25f, 0.75f, 0.95f, 0.8f);
+                shapeRenderer.circle(rallyPoint.x, rallyPoint.y, 5f, 14);
+                shapeRenderer.end();
+            }
         } catch (Exception ex) {
             Gdx.app.error("Overlay", "drawActorBoxesOverlay error", ex);
         }
@@ -1039,6 +1131,32 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         if (Gdx.input.isKeyJustPressed(Input.Keys.N)) {
             placeStructure("storage_crate");
             Gdx.app.log("Input", "N -> place storage_crate");
+        }
+        if (Gdx.input.isKeyJustPressed(Input.Keys.G)) {
+            Colonist colonist = colonistMapper.get(colonistEntities.get(controlledColonistIndex)).colonist;
+            Tree nearest = null;
+            float best = Float.MAX_VALUE;
+            for (int i = 0; i < trees.size; i++) {
+                Tree t = trees.get(i);
+                float d2 = colonist.getPosition().dst2(t.pos);
+                if (d2 < best) { best = d2; nearest = t; }
+            }
+            if (nearest != null && best <= 28f * 28f) {
+                nearest.health -= 0.5f;
+                if (nearest.health <= 0f) {
+                    trees.removeValue(nearest, true);
+                    inventory.add("raw_wood", 2);
+                    FloatingText ft = new FloatingText();
+                    ft.pos.set(colonist.getPosition().x, colonist.getPosition().y + 16f);
+                    ft.text = "+madera";
+                    ft.color.set(0.95f, 0.85f, 0.4f, 1f);
+                    ft.ttl = 1.4f;
+                    ft.vy = 18f;
+                    floatingTexts.add(ft);
+                }
+            } else {
+                showStatus("Acércate a un árbol y pulsa G");
+            }
         }
     }
 
@@ -1123,11 +1241,40 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         for (int i = 0; i < colonistEntities.size; i++) {
             InputControlComponent input = inputMapper.get(colonistEntities.get(i));
             if (i == controlledColonistIndex) {
-                input.direction.set(inputDirection);
-                input.intendedSpeed = inputDirection.isZero(0.001f) ? 0f : speed;
+                if (hasClickTarget) {
+                    Colonist c = colonistMapper.get(colonistEntities.get(i)).colonist;
+                    Vector2 pos = c.getPosition();
+                    float dx = clickTarget.x - pos.x;
+                    float dy = clickTarget.y - pos.y;
+                    if (Math.abs(dx) < 2f && Math.abs(dy) < 2f) {
+                        hasClickTarget = false;
+                        input.direction.setZero();
+                        input.intendedSpeed = 0f;
+                    } else {
+                        input.direction.set(dx, dy).nor();
+                        input.intendedSpeed = speed;
+                    }
+                } else {
+                    input.direction.set(inputDirection);
+                    input.intendedSpeed = inputDirection.isZero(0.001f) ? 0f : speed;
+                }
             } else {
-                input.direction.setZero();
-                input.intendedSpeed = 0f;
+                if (hasRallyPoint) {
+                    Colonist c = colonistMapper.get(colonistEntities.get(i)).colonist;
+                    Vector2 pos = c.getPosition();
+                    float dx = rallyPoint.x - pos.x;
+                    float dy = rallyPoint.y - pos.y;
+                    if (Math.abs(dx) < 4f && Math.abs(dy) < 4f) {
+                        input.direction.setZero();
+                        input.intendedSpeed = 0f;
+                    } else {
+                        input.direction.set(dx, dy).nor();
+                        input.intendedSpeed = 160f;
+                    }
+                } else {
+                    input.direction.setZero();
+                    input.intendedSpeed = 0f;
+                }
             }
             PlayerCombatComponent combat = playerCombatMapper.get(colonistEntities.get(i));
             StatsComponent stats = statsMapper.get(colonistEntities.get(i));
@@ -1220,6 +1367,13 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
     }
 
     private void drawStructures() {
+        for (int i = 0; i < trees.size; i++) {
+            Tree t = trees.get(i);
+            if (!isOnScreen(t.pos.x, t.pos.y, 48f)) continue;
+            float s = 28f + (1f - t.health) * 4f;
+            batch.setColor(0.9f - (1f - t.health) * 0.2f, 0.95f, 0.9f, 1f);
+            batch.draw(treeTexture, t.pos.x - s / 2f, t.pos.y - s / 2f, s, s);
+        }
         for (StructureInstance instance : structureManager.getInstances()) {
             Rectangle rect = instance.getBounds();
             float centerX = rect.x + rect.width / 2f;
@@ -1251,15 +1405,17 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         for (int i = 0; i < colonistEntities.size; i++) {
             Colonist colonist = colonistMapper.get(colonistEntities.get(i)).colonist;
             InputControlComponent input = inputMapper.get(colonistEntities.get(i));
-            batch.setColor(input.selected ? Color.WHITE : new Color(1f, 1f, 1f, 0.85f));
-            batch.draw(colonistTexture, colonist.getPosition().x - 16, colonist.getPosition().y - 16);
+            boolean moving = input.intendedSpeed > 0f && !input.direction.isZero(0.001f);
+            Texture tex = moving && (MathUtils.floor(colonistAnimTimer * 6f) % 2 == 0) ? colonistWalkTexture : colonistTexture;
+            batch.setColor(input.selected ? Color.WHITE : new Color(1f, 1f, 1f, 0.9f));
+            batch.draw(tex, colonist.getPosition().x - 16, colonist.getPosition().y - 16);
         }
         batch.setColor(Color.WHITE);
     }
 
     private void drawHud(float delta) {
         StringBuilder builder = new StringBuilder();
-        builder.append("Muisca v0.0.7 | Tab colonos | WASD mover | Shift correr | Q/E hechizos | 1=Tablones | 2=Cama | B/N planos | C grilla | F1 debug | F2 perf | F3 clima | F4 fallback | F5 tiles shapes | F6 cajas actores | F7 solo shapes | F8 agro overlay\n");
+        builder.append("Muisca v0.0.7 | Click mover | Tab colonos | WASD mover | Shift correr | Q/E hechizos | 1=Tablones | 2=Cama | B/N planos | C grilla | F1 debug | F2 perf | F3 clima | F4 fallback | F5 tiles shapes | F6 cajas actores | F7 solo shapes | F8 agro overlay\n");
         builder.append("Inventario: ").append(inventory.summarize()).append('\n');
         builder.append("Pedidos carpintería: ");
         boolean first = true;
@@ -1452,6 +1608,13 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
             drawBar(enemyComponent.position.x - 18f, enemyComponent.position.y + 20f, 36f, 3f,
                     stats.stats.getHealthRatio(), stats.stats.isAlive() ? HP_BAR_ENEMY : ENEMY_DEFEATED_COLOR);
         }
+        if (critters.size > 0) {
+            shapeRenderer.setColor(0.35f, 0.65f, 0.95f, 0.8f);
+            for (Vector2 c : critters) {
+                if (!isOnScreen(c.x, c.y, 40f)) continue;
+                shapeRenderer.circle(c.x, c.y, 2.2f, 8);
+            }
+        }
         shapeRenderer.end();
 
         // Day/Night tint overlay (draw last to darken scene)
@@ -1474,6 +1637,40 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
                 shapeRenderer.rectLine(drop.x, drop.y, drop.x + 0f, drop.y - 10f, 1.5f);
             }
         }
+        if (fireflies.size > 0) {
+            shapeRenderer.setColor(0.95f, 0.9f, 0.6f, 0.7f);
+            for (Vector2 f : fireflies) {
+                shapeRenderer.circle(f.x, f.y, 1.8f, 10);
+            }
+        }
+        shapeRenderer.end();
+
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+        float mapW = 180f;
+        float mapH = 120f;
+        float ox = camera.position.x - camera.viewportWidth / 2f + 16f;
+        float oy = camera.position.y + camera.viewportHeight / 2f - 16f - mapH;
+        shapeRenderer.setColor(0f, 0f, 0f, 0.35f);
+        shapeRenderer.rect(ox - 4f, oy - 4f, mapW + 8f, mapH + 8f);
+        float sx = mapW / (worldMap.getWidth() * TILE_SIZE);
+        float sy = mapH / (worldMap.getHeight() * TILE_SIZE);
+        shapeRenderer.setColor(0.2f, 0.25f, 0.28f, 0.9f);
+        shapeRenderer.rect(ox, oy, mapW, mapH);
+        int step = 6;
+        for (int x = 0; x < worldMap.getWidth(); x += step) {
+            for (int y = 0; y < worldMap.getHeight(); y += step) {
+                TileType t = worldMap.getTile(x, y);
+                Color c = t.getColor();
+                shapeRenderer.setColor(c.r, c.g, c.b, 0.7f);
+                float rx = ox + (x * TILE_SIZE) * sx;
+                float ry = oy + (y * TILE_SIZE) * sy;
+                shapeRenderer.rect(rx, ry, step * TILE_SIZE * sx, step * TILE_SIZE * sy);
+            }
+        }
+        float vx = ox + (camera.position.x - camera.viewportWidth / 2f) * sx;
+        float vy = oy + (camera.position.y - camera.viewportHeight / 2f) * sy;
+        shapeRenderer.setColor(1f, 1f, 1f, 0.9f);
+        shapeRenderer.rect(vx, vy, camera.viewportWidth * sx, camera.viewportHeight * sy);
         shapeRenderer.end();
     }
 
@@ -1509,7 +1706,78 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
                 rainDrops.add(new Vector2(x, y));
             }
         }
+        float dayIntensity = MathUtils.sin(dayTimer * MathUtils.PI2) * 0.5f + 0.5f;
+        if (dayIntensity < 0.35f) {
+            fireflySpawnAccumulator += delta;
+            int spawn = (int) (fireflySpawnAccumulator * 6f);
+            if (spawn > 0) {
+                fireflySpawnAccumulator -= spawn / 6f;
+                for (int i = 0; i < spawn; i++) {
+                    float x = MathUtils.random(camLeft, camRight);
+                    float y = MathUtils.random(camBottom, camTop);
+                    fireflies.add(new Vector2(x, y));
+                }
+            }
+            for (int i = fireflies.size - 1; i >= 0; i--) {
+                Vector2 f = fireflies.get(i);
+                f.x += MathUtils.random(-20f, 20f) * delta;
+                f.y += MathUtils.random(-12f, 12f) * delta;
+                if (f.x < camLeft - 5f || f.x > camRight + 5f || f.y < camBottom - 5f || f.y > camTop + 5f) {
+                    fireflies.removeIndex(i);
+                }
+            }
+        } else {
+            fireflies.clear();
+            fireflySpawnAccumulator = 0f;
+        }
     }
+
+    private void scatterTrees() {
+        for (int x = 0; x < worldMap.getWidth(); x += 3) {
+            for (int y = 0; y < worldMap.getHeight(); y += 3) {
+                TileType t = worldMap.getTile(x, y);
+                if (t.isWater()) continue;
+                float lush = floraField.sampleGrass(x, y);
+                if (lush > 0.55f && MathUtils.random() < 0.18f) {
+                    Tree tree = new Tree();
+                    tree.pos.set(x * TILE_SIZE + MathUtils.random(-6f, 6f), y * TILE_SIZE + MathUtils.random(-6f, 6f));
+                    trees.add(tree);
+                }
+            }
+        }
+    }
+
+    private void spawnCritters() {
+        for (int i = 0; i < 40; i++) {
+            int x = MathUtils.random(0, worldMap.getWidth() - 1);
+            int y = MathUtils.random(0, worldMap.getHeight() - 1);
+            if (worldMap.getTile(x, y).isWater()) continue;
+            critters.add(new Vector2(x * TILE_SIZE + MathUtils.random(-8f, 8f), y * TILE_SIZE + MathUtils.random(-8f, 8f)));
+        }
+    }
+
+    private void updateCritters(float delta) {
+        for (int i = 0; i < critters.size; i++) {
+            Vector2 c = critters.get(i);
+            c.x += MathUtils.random(-20f, 20f) * delta;
+            c.y += MathUtils.random(-18f, 18f) * delta;
+            c.x = MathUtils.clamp(c.x, 0f, worldMap.getWidth() * TILE_SIZE);
+            c.y = MathUtils.clamp(c.y, 0f, worldMap.getHeight() * TILE_SIZE);
+        }
+    }
+
+    private void updateFloatingTexts(float delta) {
+        for (int i = floatingTexts.size - 1; i >= 0; i--) {
+            FloatingText ft = floatingTexts.get(i);
+            ft.ttl -= delta;
+            ft.pos.y += ft.vy * delta;
+            ft.color.a = MathUtils.clamp(ft.ttl, 0f, 1f);
+            if (ft.ttl <= 0f) {
+                floatingTexts.removeIndex(i);
+            }
+        }
+    }
+
 
     // Dibujo de emergencia para diagnosticar pantalla negra: un rectángulo y una cruz en el centro
     private void drawFallbackOverlay() {
@@ -1650,6 +1918,25 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         return texture;
     }
 
+    private Texture createColonistWalkTexture() {
+        Pixmap pixmap = new Pixmap(32, 32, Pixmap.Format.RGBA8888);
+        pixmap.setColor(new Color(0.12f, 0.12f, 0.12f, 1f));
+        pixmap.fillCircle(16, 16, 15);
+        pixmap.setColor(new Color(0.9f, 0.78f, 0.55f, 1f));
+        pixmap.fillCircle(16, 18, 11);
+        pixmap.setColor(new Color(0.17f, 0.3f, 0.55f, 1f));
+        pixmap.fillRectangle(11, 6, 10, 10);
+        pixmap.setColor(new Color(0.2f, 0.2f, 0.25f, 1f));
+        pixmap.fillRectangle(12, 4, 8, 4);
+        pixmap.setColor(new Color(0.65f, 0.33f, 0.18f, 1f));
+        pixmap.fillRectangle(14, 22, 4, 8);
+        pixmap.fillRectangle(9, 20, 4, 10);
+        pixmap.fillRectangle(23, 20, 4, 10);
+        Texture texture = new Texture(pixmap);
+        pixmap.dispose();
+        return texture;
+    }
+
     private Texture createEnemyTexture() {
         Pixmap pixmap = new Pixmap(32, 32, Pixmap.Format.RGBA8888);
         pixmap.setColor(new Color(0.1f, 0.05f, 0.05f, 1f));
@@ -1661,6 +1948,19 @@ public class SettlementScreen extends ScreenAdapter implements Disposable {
         pixmap.setColor(new Color(0.95f, 0.85f, 0.4f, 1f));
         pixmap.fillCircle(12, 18, 2);
         pixmap.fillCircle(20, 18, 2);
+        Texture texture = new Texture(pixmap);
+        pixmap.dispose();
+        return texture;
+    }
+
+    private Texture createTreeTexture() {
+        Pixmap pixmap = new Pixmap(32, 32, Pixmap.Format.RGBA8888);
+        pixmap.setColor(new Color(0.1f, 0.2f, 0.1f, 1f));
+        pixmap.fillCircle(16, 18, 12);
+        pixmap.setColor(new Color(0.15f, 0.35f, 0.18f, 1f));
+        pixmap.fillCircle(16, 16, 10);
+        pixmap.setColor(new Color(0.35f, 0.22f, 0.12f, 1f));
+        pixmap.fillRectangle(14, 6, 4, 10);
         Texture texture = new Texture(pixmap);
         pixmap.dispose();
         return texture;

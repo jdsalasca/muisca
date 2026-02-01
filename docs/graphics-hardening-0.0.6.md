@@ -42,6 +42,7 @@ Este documento resume los cambios introducidos para hacer el render más seguro 
    - C: grilla de chunks, F1: debug, F2: perf.
 3. Si hay pantalla negra:
    - Probar `-GradleArgs '-Dmuisca.angle=true'` en el script de ejecución.
+   - Redimensionar la ventana y verificar que el render se mantiene tras `resize`.
    - Adjuntar captura y `logs/run-desktop-*.log`.
 
 ## Interpretación rápida
@@ -53,3 +54,12 @@ Este documento resume los cambios introducidos para hacer el render más seguro 
 
 - 0.0.1–0.0.4: facilitan validación del mundo y entidades aun con placeholders.
 - 0.0.5–0.0.6: mejoran estabilidad del render en presencia de sistemas nuevos (clima, combate, overlays) y aceleran el diagnóstico.
+5) Mitigación de intermitencia por estado GL (blending)
+- Problema: en algunos drivers el estado global de `GL_BLEND` puede variar tras cambios de foco o secuencias de draw; los overlays con alfa se dibujan como negro opaco de forma intermitente.
+- Solución: habilitar blending al comienzo del frame y re‑habilitarlo explícitamente antes de cada overlay `ShapeRenderer` (línea y relleno). Además, ajustar `resize(width, height)` para que la cámara sincronice el viewport tras cambios de tamaño.
+- Código:
+  - En `SettlementScreen.render(...)` añadir:
+    - `Gdx.gl.glEnable(GL20.GL_BLEND)`
+    - `Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)`
+  - Antes de `shapeRenderer.begin(...)` en overlays (`drawWorldShapeOverlay`, `drawActorBoxesOverlay`, `drawFarmOverlay`, `drawOverlays`, `drawFallbackOverlay`) re‑aplicar las dos líneas anteriores.
+  - Implementar `resize(int width, int height)` para actualizar proyección: `camera.setToOrtho(false, width, height); camera.update();`
